@@ -1,0 +1,17 @@
+.wrapper {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 5fr;
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    border-right: 1rem;
+    padding: 1rem;
+    gap: 5em;
+
+    div {
+      border: 1px solid black;
+      padding: 1rem;
+    }
+  }
+}
