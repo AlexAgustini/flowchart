@@ -1,15 +1,17 @@
+import { FlowBlockTypes } from './../../helpers/flowchart-steps-registry';
+import { DragService } from './../../services/drag.service';
 import { Component, HostListener } from '@angular/core';
-import { FlowchartStepDynamicComponent } from '../flowchart-step-dynamic-component/flowchart-step-dynamic.component';
+import { FlowchartStepComponent } from '../flowchart-step-component/flowchart-step.component';
 
 @Component({
   templateUrl: './flowchart-drop-area.component.html',
+  selector: 'drop-area',
   standalone: true,
 })
-export class FlowchartDropAreaComponent extends FlowchartStepDynamicComponent {
-  constructor() {
+export class FlowchartDropAreaComponent extends FlowchartStepComponent {
+  constructor(private dragService: DragService) {
     super();
   }
-
   /**
    * Observa drops de steps
    * @param event Evento de drag
@@ -17,17 +19,31 @@ export class FlowchartDropAreaComponent extends FlowchartStepDynamicComponent {
   @HostListener('drop', ['$event']) private onDrop(event: DragEvent) {
     const stepName = event.dataTransfer.getData('STEP_NAME');
     const data = event.dataTransfer.getData('data');
-    const canDropAnywhere = event.dataTransfer.getData('canDropAnywhere');
+    const coordinates = this.getCoordinates();
 
-    this.associatedStep.removeAssociatedComponent();
-    this.associatedStep.createAssociatedComponent({
-      STEP_NAME: stepName,
+    this.removeSelf();
+    this.parent.addChild({
+      id: this.id,
+      STEP_NAME: stepName as FlowBlockTypes,
       data,
+      coordinates,
     });
   }
 
   @HostListener('dragover', ['$event'])
   private onDragOver(e) {
     e.preventDefault();
+  }
+
+  @HostListener('dragenter', ['$event'])
+  private onDragEnter(e) {
+    e.preventDefault();
+    this.dragService.isHoveringOverDropArea = true;
+  }
+
+  override ngOnDestroy() {
+    setTimeout(() => {
+      this.dragService.isHoveringOverDropArea = false;
+    }, 100);
   }
 }

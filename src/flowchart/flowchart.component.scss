@@ -4,4 +4,48 @@
   display: block;
   position: relative;
   overflow: auto;
+
+  &::after {
+    content: "";
+    height: 1rem;
+    width: 100%;
+    display: block;
+  }
+
+  &::ng-deep {
+    .flowchart-step {
+      background-color: white;
+      position: absolute;
+      border-radius: 8px;
+      border: 1px solid black;
+      z-index: 100;
+      padding: 1rem;
+    }
+
+    .flowchart-cdk-drag-boundary-container {
+      position: absolute;
+      right: 0;
+      left: 0;
+      width: 100%;
+      pointer-events: none;
+      z-index: -1;
+      bottom: 0;
+    }
+
+    .flowchart-bottom-gap {
+      position: absolute;
+    }
+
+    #canvas-svg {
+      overflow: hidden;
+      position: absolute;
+      pointer-events: none;
+      transition: 0.2s ease;
+      path {
+        fill: transparent;
+        stroke-width: 2px;
+        stroke: black;
+      }
+    }
+  }
 }

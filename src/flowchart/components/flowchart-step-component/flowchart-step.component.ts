@@ -1,78 +1,171 @@
+import { FlowchartConstants } from './../../helpers/flowchart-constants.enum';
 import { FlowchartComponent } from './../../flowchart.component';
-import { CdkDrag, Point } from '@angular/cdk/drag-drop';
 import {
+  CdkDrag,
+  CdkDragEnd,
+  CdkDragMove,
+  CdkDragStart,
+  Point,
+} from '@angular/cdk/drag-drop';
+import {
+  AfterViewInit,
   Component,
   ComponentRef,
   ElementRef,
+  HostBinding,
   Input,
+  OnDestroy,
+  OnInit,
   Renderer2,
-  ViewChild,
-  ViewContainerRef,
-  ViewRef,
+  inject,
 } from '@angular/core';
-import { FlowchartRendererService } from '../../services/flowchart.service';
+import { FlowchartService } from '../../services/flowchart.service';
 import {
   FlowchartStep,
+  FlowchartStepConnector,
   FlowchartStepCoordinates,
 } from '../../types/flowchart-step.type';
-import { FlowchartConstantsEnum } from '../../helpers/flowchart-constants.enum';
-import { FlowchartStepDynamicComponent } from '../flowchart-step-dynamic-component/flowchart-step-dynamic.component';
-import { stepsMap } from '../../helpers/flowchart-steps-registry';
 import { ConnectorsService } from '../../services/connectors.service';
+import { DOCUMENT } from '@angular/common';
+import { FlowBlockTypes } from '../../helpers/flowchart-steps-registry';
 
 @Component({
   standalone: true,
   selector: 'flowchart-step',
-  templateUrl: './flowchart-step.component.html',
-  styleUrl: './flowchart-step.component.scss',
+  template: '',
   hostDirectives: [CdkDrag],
 })
-export class FlowchartStepComponent {
-  /**
-   * View container onde será inserido o componente dinâmico associado à esse step
-   */
-  @ViewChild('container', { read: ViewContainerRef })
-  private componentContainer: ViewContainerRef;
+export class FlowchartStepComponent<T = any>
+  implements OnInit, AfterViewInit, OnDestroy
+{
+  static STEP_NAME: FlowBlockTypes;
   /**
    * Pai do step
    */
   @Input()
-  private parent: FlowchartStepComponent;
+  public parent: FlowchartStepComponent;
+  /**
+   * Id do step
+   */
   @Input()
-  private pendingComponent: FlowchartStep;
+  public id: string;
+  /**
+   * Dados do step
+   */
   @Input()
-  private id: string;
+  protected data: T;
+  /**
+   * Coordenadas do step {@link CdkDrag}
+   */
   @Input()
-  private hostView: ViewRef;
+  public coordinates: FlowchartStepCoordinates;
+  /**
+   * Referência ao componente do step
+   */
+  @Input()
+  private compRef: ComponentRef<FlowchartStepComponent>;
+  /**
+   * Callbacks a serem chamados apoós renderização do step
+   */
+  @Input()
+  public afterStepRender: (step: FlowchartStepComponent) => void;
+  /**
+   * Callbacks a serem chamados apoós remoção do step
+   */
+  @Input()
+  public afterStepDestroy: (
+    step: FlowchartStepComponent,
+    recursive?: boolean
+  ) => void;
 
-  private associatedComponent: FlowchartStepDynamicComponent;
+  /**
+   * Steps filhos
+   */
+  public children?: Array<FlowchartStepComponent> = [];
+  /**
+   * Conectores do step
+   */
+  public connectors?: Array<FlowchartStepConnector> = [];
+  /**
+   * Contém coordenadas do step antes de começar a ser arrastado, para fazer cálculos de drag de steps children
+   */
+  public dragPositionBeforeDragStart: FlowchartStepCoordinates;
+  /**
+   * @private
+   * @readonly
+   * Renderer2
+   */
+  private readonly renderer2 = inject(Renderer2);
+  /**
+   * @private
+   * @readonly
+   * Referência ao elemento nativo
+   */
+  private readonly elementRef = inject(ElementRef);
+  /**
+   * @private
+   * @readonly
+   * Serviço do flowchart
+   */
+  private readonly flowchartService = inject(FlowchartService);
+  /**
+   * @private
+   * @readonly
+   * Referência ao DOM
+   */
+  private readonly document = inject(DOCUMENT);
+  /**
+   * @private
+   * @readonly
+   * Serviço de conectores
+   */
+  private readonly connectorsService = inject(ConnectorsService);
+  /**
+   * @private
+   * @readonly
+   * Referência à hostDiretctive CdkDrag
+   */
+  private readonly dragDir = inject(CdkDrag);
 
-  public children: Array<FlowchartStepComponent> = [];
-
-  constructor(
-    private flowchartRendererService: FlowchartRendererService,
-    private connectorsService: ConnectorsService,
-    private elementRef: ElementRef<HTMLElement>,
-    private renderer2: Renderer2,
-    public dragDir: CdkDrag
-  ) {
-    this.setCdkDragBoundary();
-  }
-
-  ngOnInit() {
-    this.renderer2.addClass(
-      this.elementRef.nativeElement,
-      FlowchartConstantsEnum.FLOWCHART_STEP_CLASS
-    );
-
-    this.renderer2.setAttribute(this.elementRef.nativeElement, 'id', this.id);
-  }
+  ngOnInit() {}
 
   ngAfterViewInit() {
-    this.createAssociatedComponent(this.pendingComponent);
+    this.setCdkDragBoundary();
+    this.setCdkDragEventsCallbacks();
+    this.setHostElementDefaults();
 
-    if (this.pendingComponent.coordinates) {
-      this.setCoordinates(this.pendingComponent.coordinates);
+    this.afterStepRender(this);
+  }
+
+  ngOnDestroy() {}
+
+  /**
+   * Adiciona um step filho
+   * @param pendingComponent step a ser adicionado
+   * @param asSibling Se o step a ser adicionado deve ser adicionado como irmão dos atuais filhos desse step(default true). Caso não for sibling,
+   * os filhos desse step serão realocados como children do novo step inserido
+   */
+  public addChild(
+    pendingComponent: FlowchartStep,
+    asSibling?: boolean
+  ): FlowchartStepComponent {
+    return this.flowchartService.createStep({
+      pendingStep: pendingComponent,
+      parentStep: this,
+      asSibling,
+    });
+  }
+
+  /**
+   * Remove o flowchartStep
+   * @param recursive Se deve remover os steps subsequentes
+   */
+  protected removeSelf(recursive?: boolean): void {
+    this.compRef.destroy();
+    this.afterStepDestroy(this, recursive);
+
+    if (recursive) {
+      this.children.forEach((child) => child.removeSelf(true));
     }
   }
 
@@ -81,96 +174,93 @@ export class FlowchartStepComponent {
    * @param point Ponto a ser setado
    */
   public setCoordinates(point: Point): void {
+    if (!point) return;
     this.dragDir.setFreeDragPosition({ x: point.x, y: point.y });
-  }
-
-  /**
-   * Cria o componente dinâmico associado à esse flowStep
-   */
-  public createAssociatedComponent(
-    pendingComponent: FlowchartStep
-  ): ComponentRef<FlowchartStepDynamicComponent> {
-    const componentRef: ComponentRef<FlowchartStepDynamicComponent> =
-      this.componentContainer.createComponent(
-        stepsMap.get(pendingComponent.STEP_NAME)
-      );
-
-    this.associatedComponent = componentRef.instance;
-
-    componentRef.setInput('data', pendingComponent.data);
-    componentRef.setInput('associatedStep', this);
-    componentRef.changeDetectorRef.detectChanges();
-
-    return componentRef;
-  }
-
-  /**
-   * Remove apenas o componente associado e mantém o container do flowchartStep
-   */
-  public removeAssociatedComponent(): void {
-    this.componentContainer.remove(0);
-  }
-
-  /**
-   * Remove o flowchartStep
-   */
-  protected removeSelf(): void {
-    this.flowchartRendererService.removeStep(this.hostView);
-  }
-
-  /**
-   * Adiciona um componente filho
-   * @param pendingComponent Componente a ser adicioando
-   */
-  public addChild(pendingComponent: FlowchartStep): void {
-    const step = this.flowchartRendererService.createStep(
-      {
-        STEP_NAME: pendingComponent.STEP_NAME,
-      },
-      this
-    );
-
-    step.calculateCoordinates();
-  }
-
-  /**
-   * Calcula posição do step no flowchart com base nas suas dimensões / coordenadas
-   */
-  private calculateCoordinates(): void {
-    const parentStepCoordinates = this.parent.getCoordinates();
-
-    const parentStepCenter =
-      parentStepCoordinates.x + parentStepCoordinates.width / 2;
-    const stepCoordinates = this.getCoordinates();
-
-    this.setCoordinates({
-      x: parentStepCenter - stepCoordinates.width / 2,
-      y:
-        parentStepCoordinates.y +
-        stepCoordinates.height +
-        FlowchartConstantsEnum.FLOWCHART_STEPS_GAP,
-    });
-  }
-
-  /**
-   * Seta limite de drag dentro do elemento do {@link FlowchartComponent}
-   */
-  private setCdkDragBoundary(): void {
-    this.dragDir.boundaryElement = this.flowchartRendererService.flowchartEl;
   }
 
   /**
    * Retorna coordenadas do step
    * @returns
    */
-  private getCoordinates(): FlowchartStepCoordinates {
+  public getCoordinates(): FlowchartStepCoordinates {
     const { height, width } =
       this.elementRef.nativeElement.getBoundingClientRect();
 
     return { ...this.dragDir.getFreeDragPosition(), height, width };
   }
 
-  log() {
-    console.log(this);
+  /**
+   * Seta callbacks para eventos de drag {@link dragDir}
+   */
+  private setCdkDragEventsCallbacks(): void {
+    this.dragDir.moved.subscribe((e) => this.onDragMoved(e));
+    this.dragDir.started.subscribe((e) => this.onDragStart(e));
+    this.dragDir.ended.subscribe((e) => this.onDragEnd(e));
+  }
+
+  /**
+   * Seta limite de drag dentro do elemento do {@link FlowchartComponent}
+   */
+  private setCdkDragBoundary(): void {
+    const container = this.document.createElement('div');
+    container.style.top = `${this.getCoordinates().y}px`;
+    container.classList.add(
+      FlowchartConstants.FLOWCHART_CDK_DRAG_BOUNDARY_CONTAINER
+    );
+
+    this.flowchartService.flowchartEl.appendChild(container);
+
+    this.dragDir.boundaryElement = container;
+  }
+
+  /**
+   * Callback when starting to drag the component
+   * @param dragEvent Event
+   */
+  private onDragStart(dragEvent: CdkDragStart) {
+    this.dragPositionBeforeDragStart = this.getCoordinates();
+    this.children.forEach((child) => child.onDragStart(dragEvent));
+  }
+
+  /**
+   * Callback after stopped dragging component
+   * @param dragEvent Event
+   */
+  private onDragEnd(e: CdkDragEnd) {}
+
+  /**
+   * Callback when dragging component
+   * @param dragEvent Event
+   */
+  private onDragMoved(dragEvent: CdkDragMove): void {
+    this.children.forEach((child) => {
+      const { x, y } = child.dragPositionBeforeDragStart
+        ? child.dragPositionBeforeDragStart
+        : child.getCoordinates();
+
+      child.setCoordinates({
+        x: x + dragEvent.distance.x,
+        y: y + dragEvent.distance.y,
+      });
+
+      child.onDragMoved(dragEvent);
+    });
+
+    this.connectorsService.drawConnectors(this);
+    if (this.parent) {
+      this.connectorsService.drawConnectors(this.parent);
+    }
+  }
+
+  /**
+   * Seta atributos default do hostElement
+   */
+  private setHostElementDefaults(): void {
+    this.renderer2.addClass(
+      this.elementRef.nativeElement,
+      FlowchartConstants.FLOWCHART_STEP_CLASS
+    );
+
+    this.renderer2.setAttribute(this.elementRef.nativeElement, 'id', this.id);
   }
 }

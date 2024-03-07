@@ -1,6 +1,7 @@
 import { Directive, HostBinding, HostListener, Input } from '@angular/core';
-import { FlowchartRendererService } from '../services/flowchart.service';
+import { FlowchartService } from '../services/flowchart.service';
 import { FlowchartStep } from '../types/flowchart-step.type';
+import { DragService } from '../services/drag.service';
 
 @Directive({
   selector: '[flowchartStep]',
@@ -9,23 +10,22 @@ import { FlowchartStep } from '../types/flowchart-step.type';
 export class FlowchartStepDirective {
   @Input({ required: true }) pendingStep!: FlowchartStep;
 
-  constructor(private flowchartRendererService: FlowchartRendererService) {}
+  constructor(
+    private flowchartService: FlowchartService,
+    private dragService: DragService
+  ) {}
 
   @HostBinding('attr.draggable') draggable = true;
 
   @HostListener('dragend', ['$event']) onDragEnd(event: DragEvent) {
     event.preventDefault();
-    if (this.pendingStep.canDropAnywhere) {
-      const flowStep = this.flowchartRendererService.createStep({
-        ...this.pendingStep,
-      });
 
-      flowStep.setCoordinates(
-        this.flowchartRendererService.getPointXYRelativeToFlowchart({
-          x: event.x,
-          y: event.y,
-        })
-      );
+    if (
+      this.pendingStep.canDropAnywhere &&
+      !this.dragService.isHoveringOverDropArea &&
+      this.isCursorInsideFlowchartContainer(event.x, event.y)
+    ) {
+      this.createStepWithFreePosition(event);
     }
   }
 
@@ -36,5 +36,40 @@ export class FlowchartStepDirective {
       'canDropAnywhere',
       String(this.pendingStep.canDropAnywhere)
     );
+  }
+
+  /**
+   *
+   * @param x Retorna se a posição atual do mouse está dentro do flowchart container
+   */
+  private isCursorInsideFlowchartContainer(x: number, y: number): boolean {
+    const flowchartBoundingRect = this.flowchartService.flowchartBoundingRect;
+
+    return (
+      x > flowchartBoundingRect.left &&
+      x < flowchartBoundingRect.right &&
+      y > flowchartBoundingRect.top &&
+      y < flowchartBoundingRect.bottom
+    );
+  }
+
+  /**
+   *
+   * @param event Cria step na em posição livre dentro do flowchart
+   */
+  private createStepWithFreePosition(event: DragEvent): void {
+    const { x, y } = this.flowchartService.getPointXYRelativeToFlowchart({
+      x: event.x,
+      y: event.y,
+    });
+
+    this.pendingStep.coordinates = {
+      x,
+      y,
+    };
+
+    const flowStep = this.flowchartService.createStep({
+      pendingStep: this.pendingStep,
+    });
   }
 }
