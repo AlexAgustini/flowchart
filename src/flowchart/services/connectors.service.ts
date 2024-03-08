@@ -1,63 +1,78 @@
-import { Inject, Injectable, Renderer2, RendererFactory2 } from '@angular/core';
+import {
+  Inject,
+  Injectable,
+  Injector,
+  Renderer2,
+  RendererFactory2,
+} from '@angular/core';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import {
+  Flow,
   FlowchartStepConnector,
   FlowchartStepCoordinates,
 } from '../types/flowchart-step.type';
-import { DOCUMENT } from '@angular/common';
+import { FlowchartService } from './flowchart.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ConnectorsService {
-  private svg: SVGElement;
+  private svgCanvas: SVGElement;
 
   private readonly renderer2: Renderer2;
 
   constructor(
-    @Inject(DOCUMENT) private document: Document,
-    private rendererFactory: RendererFactory2
+    rendererFactory: RendererFactory2,
+    injector: Injector,
+    private flowchartService: FlowchartService
   ) {
     this.renderer2 = rendererFactory.createRenderer(null, null);
   }
 
-  registerSvg(svg: SVGElement) {
-    this.svg = svg;
+  public registerSvg(svg: SVGElement) {
+    this.svgCanvas = svg;
   }
 
-  drawConnectors(step: FlowchartStepComponent) {
+  public drawConnectors(step: FlowchartStepComponent) {
     if (!step) return;
 
     step.children.forEach((child) => {
-      let connector = this.getParentChildConnector(step.connectors, child.id);
+      let connector = this.getParentChildConnector(step.id, child.id);
+
       if (!connector) {
-        connector = this.createConnector(step, child.id);
+        connector = this.createConnector(step.id, child.id);
       }
 
       const stepDimensions = step.getCoordinates();
       const childDimensions = child.getCoordinates();
 
-      this.drawPath(connector, stepDimensions, childDimensions);
+      this.drawPath(connector.path, stepDimensions, childDimensions);
     });
   }
 
-  createConnector(
-    parentStep: FlowchartStepComponent,
+  /**
+   * Cria conector
+   * @param parentId Id do pai
+   * @param childId Id do filho
+   */
+  private createConnector(
+    parentId: string,
     childId: string
-  ): SVGPathElement {
+  ): FlowchartStepConnector {
     const path = this.renderer2.createElement(
       'path',
       'http://www.w3.org/2000/svg'
     );
-    this.renderer2.appendChild(this.svg, path);
-    this.renderer2.setAttribute(path, 'id', `${parentStep.id}-${childId}`);
+    this.renderer2.appendChild(this.svgCanvas, path);
+    this.addPathListener(path);
 
-    parentStep.connectors?.push({ path, childId });
+    const connector = { path, parentId, childId };
+    this.flowchartService.addConnector(connector);
 
-    return path;
+    return connector;
   }
 
-  drawPath(
+  private drawPath(
     path: SVGPathElement,
     parentCoordinates: FlowchartStepCoordinates,
     childCoordinates: FlowchartStepCoordinates
@@ -84,34 +99,50 @@ export class ConnectorsService {
     path.setAttribute('d', pathD);
   }
 
-  clearAllOldConnectors(step: FlowchartStepComponent) {
+  public clearDestroyedStepConnectors(step: FlowchartStepComponent) {
     if (!step) return;
 
-    const parentConnectors = step.parent?.connectors || [];
-    const childConnectors = step.connectors || [];
+    this.removeConnector(step.parent?.id, step.id);
+    step.children.forEach((child) => this.removeConnector(step.id, child.id));
+  }
 
-    console.log(parentConnectors);
-    console.log(childConnectors);
-
-    const removeConnector = (connector: FlowchartStepConnector) => {
-      this.renderer2.removeChild(this.svg, connector.path);
-    };
-
-    parentConnectors
-      .filter((connector) => connector.childId == step.id)
-      .forEach((connector, i) => {
-        parentConnectors.splice(i, 1);
-        removeConnector(connector);
-      });
-
-    childConnectors.forEach(removeConnector);
+  public removeConnector(childId: string, parentId: string) {
+    const connector = this.getParentChildConnector(childId, parentId);
+    if (!connector) return;
+    try {
+      this.flowchartService.removeConnector(connector);
+      this.renderer2.removeChild(this.svgCanvas, connector.path);
+    } catch (e) {
+      console.log(e);
+    }
   }
 
   private getParentChildConnector(
-    parentConnectors: Array<FlowchartStepConnector>,
+    parentId: string,
     childId: string
-  ): SVGPathElement {
-    return parentConnectors?.find((connector) => connector.childId == childId)
-      ?.path;
+  ): FlowchartStepConnector {
+    return this.flowchartService.connectors.find(
+      (connector) =>
+        connector.parentId == parentId && connector.childId == childId
+    );
   }
+
+  private addPathListener(path: SVGPathElement) {
+    this.renderer2.listen(path, 'dragenter', (e) => this.onDragEnter(e));
+    this.renderer2.listen(path, 'dragleave', (e) => this.onDragLeave());
+  }
+
+  private onDragEnter(e: DragEvent) {
+    const path = e.target as SVGPathElement;
+    const dimensions = path.getBoundingClientRect();
+    // const { x, y } = this.flowchartService.getPointXYRelativeToFlowchart({
+    //   x: dimensions.x,
+    //   y: dimensions.y,
+    // });
+
+    // const xMiddle = dimensions.width / 2;
+    // const yMiddle = dimensions.height / 2;
+  }
+
+  private onDragLeave() {}
 }

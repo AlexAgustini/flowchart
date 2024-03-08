@@ -1,25 +1,24 @@
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import { Point } from '@angular/cdk/drag-drop';
-import { FlowBlockTypes } from '../helpers/flowchart-steps-registry';
+import { FlowBlocksEnum } from '../helpers/flowchart-steps-registry';
 
 export type Flow = {
-  initialStep: FlowchartStepComponent;
-  steps: Array<FlowchartStepComponent>;
+  initialStep?: FlowchartStepComponent;
+  steps?: Array<FlowchartStepComponent>;
+  connectors?: Array<FlowchartStepConnector>;
 };
 
 export type FlowchartStep = {
   id?: string;
-
-  STEP_NAME: FlowBlockTypes;
+  type: FlowBlocksEnum;
   canDropAnywhere?: boolean;
   data?: any;
   children?: Array<FlowchartStep>;
   parent?: FlowchartStepComponent;
-  coordinates?: FlowchartStepCoordinates;
-  connectors?: Array<FlowchartStepConnector>;
 };
 
 export type FlowchartStepConnector = {
+  parentId: string;
   childId: string;
   path: SVGPathElement;
 };

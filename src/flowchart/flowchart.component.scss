@@ -39,11 +39,16 @@
     #canvas-svg {
       overflow: hidden;
       position: absolute;
-      pointer-events: none;
       transition: 0.2s ease;
+      pointer-events: none;
       path {
         fill: transparent;
         stroke-width: 2px;
+        stroke: black;
+      }
+
+      circle {
+        fill: transparent;
         stroke: black;
       }
     }

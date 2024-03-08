@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { FlowchartStepComponent } from '../../flowchart/components/flowchart-step-component/flowchart-step.component';
-import { FlowBlocksEnum } from '../../flowchart/helpers/flowchart-steps-registry';
+import { StepResultComponent } from '../step-result/step-result.component';
 
 @Component({
   selector: 'block1',
@@ -8,6 +8,9 @@ import { FlowBlocksEnum } from '../../flowchart/helpers/flowchart-steps-registry
 })
 export class Block1Component extends FlowchartStepComponent {
   public addErrorPath() {
-    this.addChild({ type: FlowBlocksEnum.STEP_RESULT, parent: this }, false);
+    this.addChild(
+      { STEP_NAME: StepResultComponent.STEP_NAME, parent: this },
+      false
+    );
   }
 }

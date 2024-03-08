@@ -1,7 +1,7 @@
-import { FlowBlockTypes } from './../../helpers/flowchart-steps-registry';
 import { DragService } from './../../services/drag.service';
 import { Component, HostListener } from '@angular/core';
 import { FlowchartStepComponent } from '../flowchart-step-component/flowchart-step.component';
+import { FlowBlocksEnum } from '../../helpers/flowchart-steps-registry';
 
 @Component({
   templateUrl: './flowchart-drop-area.component.html',
@@ -19,14 +19,12 @@ export class FlowchartDropAreaComponent extends FlowchartStepComponent {
   @HostListener('drop', ['$event']) private onDrop(event: DragEvent) {
     const stepName = event.dataTransfer.getData('STEP_NAME');
     const data = event.dataTransfer.getData('data');
-    const coordinates = this.getCoordinates();
 
     this.removeSelf();
     this.parent.addChild({
       id: this.id,
-      STEP_NAME: stepName as FlowBlockTypes,
+      type: stepName as FlowBlocksEnum,
       data,
-      coordinates,
     });
   }
 

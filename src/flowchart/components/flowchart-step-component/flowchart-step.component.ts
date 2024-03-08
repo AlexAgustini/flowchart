@@ -12,22 +12,22 @@ import {
   Component,
   ComponentRef,
   ElementRef,
-  HostBinding,
   Input,
   OnDestroy,
   OnInit,
   Renderer2,
   inject,
 } from '@angular/core';
-import { FlowchartService } from '../../services/flowchart.service';
 import {
   FlowchartStep,
-  FlowchartStepConnector,
   FlowchartStepCoordinates,
 } from '../../types/flowchart-step.type';
 import { ConnectorsService } from '../../services/connectors.service';
 import { DOCUMENT } from '@angular/common';
-import { FlowBlockTypes } from '../../helpers/flowchart-steps-registry';
+import { FlowchartStepsService } from '../../services/flowchart-steps.service';
+import { FlowchartCanvasService } from '../../services/flowchart-canvas.service';
+import { CoordinatesStorageService } from '../../services/coordinates-storage.service';
+import { FlowBlocksEnum } from '../../helpers/flowchart-steps-registry';
 
 @Component({
   standalone: true,
@@ -38,7 +38,6 @@ import { FlowBlockTypes } from '../../helpers/flowchart-steps-registry';
 export class FlowchartStepComponent<T = any>
   implements OnInit, AfterViewInit, OnDestroy
 {
-  static STEP_NAME: FlowBlockTypes;
   /**
    * Pai do step
    */
@@ -49,6 +48,8 @@ export class FlowchartStepComponent<T = any>
    */
   @Input()
   public id: string;
+  @Input()
+  public type: FlowBlocksEnum;
   /**
    * Dados do step
    */
@@ -83,10 +84,6 @@ export class FlowchartStepComponent<T = any>
    */
   public children?: Array<FlowchartStepComponent> = [];
   /**
-   * Conectores do step
-   */
-  public connectors?: Array<FlowchartStepConnector> = [];
-  /**
    * Contém coordenadas do step antes de começar a ser arrastado, para fazer cálculos de drag de steps children
    */
   public dragPositionBeforeDragStart: FlowchartStepCoordinates;
@@ -107,7 +104,13 @@ export class FlowchartStepComponent<T = any>
    * @readonly
    * Serviço do flowchart
    */
-  private readonly flowchartService = inject(FlowchartService);
+  private readonly flowchartStepsService = inject(FlowchartStepsService);
+  /**
+   * @private
+   * @readonly
+   * Serviço do flowchart
+   */
+  private readonly flowchartCanvasService = inject(FlowchartCanvasService);
   /**
    * @private
    * @readonly
@@ -149,7 +152,7 @@ export class FlowchartStepComponent<T = any>
     pendingComponent: FlowchartStep,
     asSibling?: boolean
   ): FlowchartStepComponent {
-    return this.flowchartService.createStep({
+    return this.flowchartStepsService.createStep({
       pendingStep: pendingComponent,
       parentStep: this,
       asSibling,
@@ -175,6 +178,7 @@ export class FlowchartStepComponent<T = any>
    */
   public setCoordinates(point: Point): void {
     if (!point) return;
+
     this.dragDir.setFreeDragPosition({ x: point.x, y: point.y });
   }
 
@@ -202,15 +206,7 @@ export class FlowchartStepComponent<T = any>
    * Seta limite de drag dentro do elemento do {@link FlowchartComponent}
    */
   private setCdkDragBoundary(): void {
-    const container = this.document.createElement('div');
-    container.style.top = `${this.getCoordinates().y}px`;
-    container.classList.add(
-      FlowchartConstants.FLOWCHART_CDK_DRAG_BOUNDARY_CONTAINER
-    );
-
-    this.flowchartService.flowchartEl.appendChild(container);
-
-    this.dragDir.boundaryElement = container;
+    this.dragDir.boundaryElement = this.flowchartCanvasService.flowchartEl;
   }
 
   /**
@@ -233,6 +229,11 @@ export class FlowchartStepComponent<T = any>
    * @param dragEvent Event
    */
   private onDragMoved(dragEvent: CdkDragMove): void {
+    CoordinatesStorageService.setStepCoordinates(
+      this.id,
+      this.getCoordinates()
+    );
+
     this.children.forEach((child) => {
       const { x, y } = child.dragPositionBeforeDragStart
         ? child.dragPositionBeforeDragStart
