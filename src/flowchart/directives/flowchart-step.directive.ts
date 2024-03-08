@@ -2,6 +2,8 @@ import { Directive, HostBinding, HostListener, Input } from '@angular/core';
 import { FlowchartStep } from '../types/flowchart-step.type';
 import { DragService } from '../services/drag.service';
 import { FlowchartCanvasService } from '../services/flowchart-canvas.service';
+import { FlowchartStepsService } from '../services/flowchart-steps.service';
+import { CoordinatesStorageService } from '../services/coordinates-storage.service';
 
 @Directive({
   selector: '[flowchartStep]',
@@ -12,6 +14,7 @@ export class FlowchartStepDirective {
 
   constructor(
     private flowchartCanvasService: FlowchartCanvasService,
+    private flowchartStepsService: FlowchartStepsService,
     private dragService: DragService
   ) {}
 
@@ -59,16 +62,16 @@ export class FlowchartStepDirective {
    * @param event Cria step na em posição livre dentro do flowchart
    */
   private createStepWithFreePosition(event: DragEvent): void {
-    // const { x, y } = this.flowchartService.getPointXYRelativeToFlowchart({
-    //   x: event.x,
-    //   y: event.y,
-    // });
-    // this.pendingStep.coordinates = {
-    //   x,
-    //   y,
-    // };
-    // const flowStep = this.flowchartService.createStep({
-    //   pendingStep: this.pendingStep,
-    // });
+    const { x, y } = this.flowchartCanvasService.getPointXYRelativeToFlowchart({
+      x: event.x,
+      y: event.y,
+    });
+
+    this.pendingStep.id = 's' + Date.now();
+
+    CoordinatesStorageService.setStepCoordinates(this.pendingStep.id, { x, y });
+    this.flowchartStepsService.createStep({
+      pendingStep: this.pendingStep,
+    });
   }
 }
