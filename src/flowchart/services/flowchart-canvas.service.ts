@@ -1,4 +1,9 @@
-import { ElementRef, Injectable, ViewContainerRef } from '@angular/core';
+import {
+  ElementRef,
+  HostListener,
+  Injectable,
+  ViewContainerRef,
+} from '@angular/core';
 import { Point } from '@angular/cdk/drag-drop';
 import { FlowchartStepsService } from './flowchart-steps.service';
 import { FlowchartStep } from '../types/flowchart-step.type';
@@ -37,8 +42,9 @@ export class FlowchartCanvasService {
     this.flowchartViewContainer = flowchartViewContainer;
     this.flowchartElement = flowchartElement;
 
-    this.flowchartStepsService.registerFlowchartContainer(
-      flowchartViewContainer
+    this.flowchartStepsService.registerFlowchart(
+      flowchartViewContainer,
+      flowchartElement
     );
   }
 

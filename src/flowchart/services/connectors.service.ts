@@ -1,5 +1,4 @@
 import {
-  Inject,
   Injectable,
   Injector,
   Renderer2,
@@ -7,7 +6,6 @@ import {
 } from '@angular/core';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import {
-  Flow,
   FlowchartStepConnector,
   FlowchartStepCoordinates,
 } from '../types/flowchart-step.type';
@@ -17,8 +15,13 @@ import { FlowchartService } from './flowchart.service';
   providedIn: 'root',
 })
 export class ConnectorsService {
+  /**
+   * Elemento SVG que contém todos os paths
+   */
   private svgCanvas: SVGElement;
-
+  /**
+   * Renderer2 {@link Renderer2}
+   */
   private readonly renderer2: Renderer2;
 
   constructor(
@@ -29,11 +32,17 @@ export class ConnectorsService {
     this.renderer2 = rendererFactory.createRenderer(null, null);
   }
 
-  public registerSvg(svg: SVGElement) {
+  /**
+   * Inicializa campo que contém o elemento de svg
+   */
+  public registerSvg(svg: SVGElement): void {
     this.svgCanvas = svg;
   }
 
-  public drawConnectors(step: FlowchartStepComponent) {
+  /**
+   * Desenha conectores entre um step e seus filhos
+   */
+  public drawConnectors(step: FlowchartStepComponent): void {
     if (!step) return;
 
     step.children.forEach((child) => {
@@ -64,19 +73,26 @@ export class ConnectorsService {
       'http://www.w3.org/2000/svg'
     );
     this.renderer2.appendChild(this.svgCanvas, path);
-    this.addPathListener(path);
+    this.renderer2.setAttribute(path, 'id', `${parentId}-${childId}`);
 
     const connector = { path, parentId, childId };
     this.flowchartService.addConnector(connector);
+    this.observePathEvents(path);
 
     return connector;
   }
 
+  /**
+   * Calcula e renderiza path
+   * @param path Elemento path a ter o atributo "d" setado
+   * @param parentCoordinates  Coordenadas do step pai
+   * @param childCoordinates Coordenadas do step filho
+   */
   private drawPath(
     path: SVGPathElement,
     parentCoordinates: FlowchartStepCoordinates,
     childCoordinates: FlowchartStepCoordinates
-  ) {
+  ): void {
     const parentElXCenter = parentCoordinates.x + parentCoordinates.width / 2;
     const parentElYBottom = parentCoordinates.y + parentCoordinates.height;
     const childElXCenter = childCoordinates.x + childCoordinates.width / 2;
@@ -99,14 +115,23 @@ export class ConnectorsService {
     path.setAttribute('d', pathD);
   }
 
-  public clearDestroyedStepConnectors(step: FlowchartStepComponent) {
+  /**
+   * Remove conectores de um step destruído
+   * @param step Step destruído
+   */
+  public clearDestroyedStepConnectors(step: FlowchartStepComponent): void {
     if (!step) return;
 
     this.removeConnector(step.parent?.id, step.id);
     step.children.forEach((child) => this.removeConnector(step.id, child.id));
   }
 
-  public removeConnector(childId: string, parentId: string) {
+  /**
+   * Remove conector(path) do svg
+   * @param childId Id do step pai
+   * @param parentId Id do step filho
+   */
+  public removeConnector(childId: string, parentId: string): void {
     const connector = this.getParentChildConnector(childId, parentId);
     if (!connector) return;
     try {
@@ -117,6 +142,11 @@ export class ConnectorsService {
     }
   }
 
+  /**
+   * Retorna conector entre pai e filho, caso existente
+   * @param parentId Id do step pai
+   * @param childId Id do step filho
+   */
   private getParentChildConnector(
     parentId: string,
     childId: string
@@ -127,22 +157,12 @@ export class ConnectorsService {
     );
   }
 
-  private addPathListener(path: SVGPathElement) {
-    this.renderer2.listen(path, 'dragenter', (e) => this.onDragEnter(e));
-    this.renderer2.listen(path, 'dragleave', (e) => this.onDragLeave());
+  /**
+   * Observa eventos de mouse emitidos pelo path
+   */
+  private observePathEvents(path: SVGPathElement): void {
+    path.addEventListener('dragover', (e) => {
+      // console.log(e);
+    });
   }
-
-  private onDragEnter(e: DragEvent) {
-    const path = e.target as SVGPathElement;
-    const dimensions = path.getBoundingClientRect();
-    // const { x, y } = this.flowchartService.getPointXYRelativeToFlowchart({
-    //   x: dimensions.x,
-    //   y: dimensions.y,
-    // });
-
-    // const xMiddle = dimensions.width / 2;
-    // const yMiddle = dimensions.height / 2;
-  }
-
-  private onDragLeave() {}
 }

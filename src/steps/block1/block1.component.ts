@@ -8,6 +8,6 @@ import { FlowBlocksEnum } from '../../flowchart/helpers/flowchart-steps-registry
 })
 export class Block1Component extends FlowchartStepComponent {
   public addErrorPath() {
-    this.addChild({ type: FlowBlocksEnum.STEP_RESULT, parent: this }, false);
+    this.addChild({ type: FlowBlocksEnum.STEP_RESULT, parent: this });
   }
 }

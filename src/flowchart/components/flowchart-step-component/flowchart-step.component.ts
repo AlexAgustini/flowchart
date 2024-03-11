@@ -12,6 +12,7 @@ import {
   Component,
   ComponentRef,
   ElementRef,
+  HostBinding,
   Input,
   OnDestroy,
   OnInit,
@@ -130,13 +131,14 @@ export class FlowchartStepComponent<T = any>
    */
   private readonly dragDir = inject(CdkDrag);
 
-  ngOnInit() {}
+  ngOnInit() {
+    if (this.type == FlowBlocksEnum.INITIAL_STEP) this.dragDir.disabled = true;
+  }
 
   ngAfterViewInit() {
     this.setCdkDragBoundary();
     this.setCdkDragEventsCallbacks();
     this.setHostElementDefaults();
-
     this.afterStepRender(this);
   }
 
@@ -180,6 +182,7 @@ export class FlowchartStepComponent<T = any>
     if (!point) return;
 
     this.dragDir.setFreeDragPosition({ x: point.x, y: point.y });
+    this.connectorsService.drawConnectors(this.parent);
   }
 
   /**
@@ -191,6 +194,28 @@ export class FlowchartStepComponent<T = any>
       this.elementRef.nativeElement.getBoundingClientRect();
 
     return { ...this.dragDir.getFreeDragPosition(), height, width };
+  }
+
+  /**
+   * Redesenha árvore de conectores a partir desse step
+   */
+  public redrawConnectorsTree(): void {
+    this.connectorsService.drawConnectors(this);
+    this.children.forEach((child) => child.redrawConnectorsTree());
+  }
+
+  /**
+   * Retorna irmãos deste step
+   */
+  public getSiblings(): Array<FlowchartStepComponent> {
+    return this.parent?.children.filter((child) => child.id !== this.id);
+  }
+
+  /**
+   * Retorna se este step foi arrastado e está em posição diferente da setada automaticamente pelo pai
+   */
+  public hasBeenDragged() {
+    return CoordinatesStorageService.getStepCoordinates(this.id) != null;
   }
 
   /**
@@ -228,7 +253,7 @@ export class FlowchartStepComponent<T = any>
    * Callback when dragging component
    * @param dragEvent Event
    */
-  private onDragMoved(dragEvent: CdkDragMove): void {
+  public onDragMoved(dragEvent: CdkDragMove): void {
     CoordinatesStorageService.setStepCoordinates(
       this.id,
       this.getCoordinates()

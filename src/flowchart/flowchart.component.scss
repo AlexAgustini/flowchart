@@ -40,10 +40,10 @@
       overflow: hidden;
       position: absolute;
       transition: 0.2s ease;
-      pointer-events: none;
+      // pointer-events: none;
       path {
         fill: transparent;
-        stroke-width: 2px;
+        stroke-width: 1px;
         stroke: black;
       }
 

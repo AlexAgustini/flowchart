@@ -1,3 +1,4 @@
+import { FlowchartConstants } from './helpers/flowchart-constants.enum';
 import {
   Component,
   ElementRef,
@@ -48,8 +49,17 @@ export class FlowchartComponent {
     this.flowchartCanvasService.initFlowchart(mock);
   }
 
+  private redrawAllConnectors() {
+    this.flowchartService.flow.steps.forEach((step) => {
+      step.redrawConnectorsTree();
+    });
+  }
+
   getViewbox() {
-    return `0 0 ${this.canvasWidth} ${this.canvasHeight}`;
+    return {
+      width: this.canvasWidth,
+      height: this.canvasHeight,
+    };
   }
 
   logFlow() {
@@ -60,6 +70,8 @@ export class FlowchartComponent {
     setInterval(() => {
       this.canvasHeight = this.elementRef.nativeElement?.scrollHeight;
       this.canvasWidth = this.elementRef.nativeElement?.scrollWidth;
+
+      this.redrawAllConnectors();
     }, 500);
   }
 
@@ -73,9 +85,46 @@ export class FlowchartComponent {
     console.log(y);
   }
 
+  @HostListener('window:resize') onResize() {
+    this.redrawAllConnectors();
+  }
+
   @HostListener('dragover', ['$event'])
-  private onDragOver(e) {
+  private onDragOver(e: DragEvent) {
     e.preventDefault();
+
+    const connectorsPositions = this.flowchartService.connectors.map(
+      (connector) => {
+        const connectorDimensions = connector.path.getBoundingClientRect();
+        return this.flowchartCanvasService.getPointXYRelativeToFlowchart({
+          x: connectorDimensions.x,
+          y: connectorDimensions.y,
+        });
+      }
+    );
+
+    const nearestConnector = connectorsPositions.find((connector) => {
+      console.log(
+        connector.x +
+          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD
+      );
+      console.log(e.offsetX);
+
+      return (
+        connector.x +
+          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD <
+          e.offsetX &&
+        connector.x -
+          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD >
+          e.offsetX &&
+        connector.y +
+          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD <
+          e.offsetY &&
+        connector.y -
+          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD >
+          e.offsetY
+      );
+    });
   }
 }
 
@@ -92,7 +141,7 @@ const mock: FlowchartStep = {
       children: [
         {
           id: '3',
-          type: FlowBlocksEnum.BLOCK_1,
+          type: FlowBlocksEnum.DROP_AREA,
         },
       ],
     },

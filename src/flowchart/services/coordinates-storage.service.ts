@@ -8,7 +8,7 @@ export class CoordinatesStorageService {
     localStorage.setItem(stepId, JSON.stringify(coordinates));
   }
 
-  static getStepCoordinates(stepId: string) {
+  static getStepCoordinates(stepId: string): FlowchartStepCoordinates {
     return JSON.parse(localStorage.getItem(stepId));
   }
 }

@@ -5,4 +5,5 @@ export const FlowchartConstants = {
   FLOWCHART_STEP_CLASS: 'flowchart-step',
   FLOWCHART_BOTTOM_GAP: 'flowchart-bottom-gap',
   FLOWCHART_STEPS_GAP: 50,
+  FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD: 20,
 };

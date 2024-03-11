@@ -1,3 +1,4 @@
+import { FlowchartConstants } from './../helpers/flowchart-constants.enum';
 import {
   ComponentRef,
   ElementRef,
@@ -9,11 +10,10 @@ import {
   FlowchartStep,
   FlowchartStepCoordinates,
 } from '../types/flowchart-step.type';
-import { FlowchartConstants } from '../helpers/flowchart-constants.enum';
 import { FlowchartService } from './flowchart.service';
 import { ConnectorsService } from './connectors.service';
 import { CoordinatesStorageService } from './coordinates-storage.service';
-import { stepsObj } from '../helpers/flowchart-steps-registry';
+import { FlowBlocksEnum, stepsObj } from '../helpers/flowchart-steps-registry';
 
 @Injectable({
   providedIn: 'root',
@@ -22,15 +22,23 @@ export class FlowchartStepsService {
   /**
    * ViewContainer do {@link FlowchartComponent}
    */
-  private flowchartViewContainer!: ViewContainerRef;
+  public flowchartViewContainer!: ViewContainerRef;
+  /**
+   * ElementRef do {@link FlowchartComponent}
+   */
+  private flowchartElement!: ElementRef<HTMLElement>;
 
   constructor(
     private flowchartService: FlowchartService,
     private connectorsService: ConnectorsService
   ) {}
 
-  public registerFlowchartContainer(flowchartViewContainer: ViewContainerRef) {
+  public registerFlowchart(
+    flowchartViewContainer: ViewContainerRef,
+    flowchartElement: ElementRef<HTMLElement>
+  ) {
     this.flowchartViewContainer = flowchartViewContainer;
+    this.flowchartElement = flowchartElement;
   }
 
   /**
@@ -184,33 +192,235 @@ export class FlowchartStepsService {
    * @param step
    */
   private setStepInitialCoordinates(step: FlowchartStepComponent) {
-    let stepCoordinates = CoordinatesStorageService.getStepCoordinates(step.id);
-    if (!stepCoordinates)
-      stepCoordinates = this.getStepDefaultCoordinates(step);
+    if (step.type == FlowBlocksEnum.INITIAL_STEP) {
+      step.setCoordinates({
+        x:
+          this.flowchartElement.nativeElement.scrollWidth / 2 -
+          step.getCoordinates().width / 2,
+        y: 0,
+      });
+      return;
+    }
+    const stepCoordinates = CoordinatesStorageService.getStepCoordinates(
+      step.id
+    );
 
-    step.setCoordinates(stepCoordinates);
+    if (stepCoordinates) {
+      step.setCoordinates(stepCoordinates);
+    } else {
+      this.setStepCoordinates(step);
+    }
+  }
+
+  /**
+   * Calcula coordenadas de um novo step
+   */
+  private setStepCoordinates(newStep: FlowchartStepComponent): void {
+    if (!newStep.parent) return;
+
+    const parentCoordinates = newStep.parent.getCoordinates();
+    const parentXCenter = parentCoordinates.x + parentCoordinates.width / 2;
+    const siblings = newStep.getSiblings();
+
+    if (siblings.length) {
+      this.setSiblingStepsCoordinates(
+        newStep,
+        siblings,
+        parentCoordinates,
+        parentXCenter
+      );
+    } else {
+      const newStepCoordinates = newStep.getCoordinates();
+
+      // Caso o step esteja sendo inserido no meio de outros dois steps, é necessário jogar os steps subsequentes para baixo
+      if (newStep.children.length) {
+        const readjustChildrenCoordinates = (
+          step: FlowchartStepComponent,
+          previousStep: FlowchartStepComponent
+        ) => {
+          const newStepCoordinates = step.getCoordinates();
+          step.setCoordinates({
+            x: newStepCoordinates.x,
+            y:
+              newStepCoordinates.y +
+              +previousStep.getCoordinates().height +
+              FlowchartConstants.FLOWCHART_STEPS_GAP,
+          });
+
+          step.children.forEach((step) =>
+            readjustChildrenCoordinates(step, step.parent)
+          );
+        };
+
+        readjustChildrenCoordinates(newStep, newStep.parent);
+      }
+
+      newStep.setCoordinates({
+        x: parentXCenter - newStepCoordinates.width / 2,
+        y:
+          parentCoordinates.y +
+          parentCoordinates.height +
+          FlowchartConstants.FLOWCHART_STEPS_GAP,
+      });
+    }
   }
 
   /**
    * Retorna coordenadas default de um step calculadas com base nas coordenadas do pai, no caso deste não ter coordenadas pré-setadas
+   * e ter irmãos
    */
-  private getStepDefaultCoordinates(
-    step: FlowchartStepComponent
-  ): FlowchartStepCoordinates {
-    if (!step.parent) return;
-    const parentStepCoordinates = step.parent.getCoordinates();
+  private setSiblingStepsCoordinates(
+    newStep: FlowchartStepComponent,
+    siblings: Array<FlowchartStepComponent>,
+    parentCoordinates: FlowchartStepCoordinates,
+    parentXCenter: number
+  ): void {
+    const noSiblingHasBeenDragged = siblings.every(
+      (sibling) => !sibling.hasBeenDragged()
+    );
 
-    const parentStepCenter =
-      parentStepCoordinates.x + parentStepCoordinates.width / 2;
-    const stepCoordinates = step.getCoordinates();
+    if (noSiblingHasBeenDragged) {
+      this.setUndraggedSiblingStepsCoordinates(
+        [...siblings, newStep],
+        parentCoordinates,
+        parentXCenter
+      );
+    } else {
+      this.setDraggedSiblingStepsCoordinates(
+        newStep,
+        siblings,
+        parentCoordinates
+      );
+    }
+  }
 
-    return {
-      x: parentStepCenter - stepCoordinates.width / 2,
-      y:
-        parentStepCoordinates.y +
-        stepCoordinates.height +
+  /**
+   * Retorna coordenadas default de um step calculadas com base nas coordenadas do pai, no caso deste não ter coordenadas pré-setadas
+   * e ter irmãos que não tiveram sua posição modificada(não foram arrastados)
+   */
+  private setUndraggedSiblingStepsCoordinates(
+    siblings: Array<FlowchartStepComponent>,
+    parentCoordinates: FlowchartStepCoordinates,
+    parentXCenter: number
+  ): void {
+    const previousPositions = siblings.map((sibling) =>
+      sibling.getCoordinates()
+    );
+
+    const isOdd = siblings.length % 2 !== 0;
+    const leftSteps = isOdd
+      ? siblings.slice(0, (siblings.length - 1) / 2)
+      : siblings.slice(0, siblings.length / 2);
+    const rightSteps = isOdd
+      ? siblings.slice((siblings.length + 1) / 2, siblings.length)
+      : siblings.slice(siblings.length / 2, siblings.length);
+
+    const leftStepsTotalWidth = leftSteps
+      .map((step) => step.getCoordinates().width)
+      .reduce((acc, curr) => acc + curr, 0);
+
+    const leftXStart =
+      parentCoordinates.x -
+      leftStepsTotalWidth -
+      FlowchartConstants.FLOWCHART_STEPS_GAP * leftSteps.length;
+    const rightXStart =
+      parentCoordinates.x +
+      parentCoordinates.width +
+      FlowchartConstants.FLOWCHART_STEPS_GAP;
+
+    function setPositions(
+      xStart: number,
+      steps: Array<FlowchartStepComponent>
+    ) {
+      const positions = [xStart];
+
+      steps.forEach((step, i) => {
+        let currentXPosition = positions[positions.length - 1];
+        const previousStep = leftSteps[i - 1];
+
+        if (i > 0) {
+          currentXPosition +=
+            previousStep.getCoordinates().width +
+            FlowchartConstants.FLOWCHART_STEPS_GAP;
+          positions.push(currentXPosition);
+        }
+
+        step.setCoordinates({
+          x: currentXPosition,
+          y:
+            parentCoordinates.y +
+            Number(FlowchartConstants.FLOWCHART_STEPS_GAP) * 2,
+        });
+      });
+    }
+
+    setPositions(leftXStart, leftSteps);
+    setPositions(rightXStart, rightSteps);
+
+    if (isOdd) {
+      const centerStep = siblings[(siblings.length - 1) / 2 + 1];
+      const centerStepCoordinates = centerStep.getCoordinates();
+      centerStep.setCoordinates({
+        x: parentXCenter - centerStepCoordinates.width / 2,
+        y:
+          parentCoordinates.y +
+          centerStepCoordinates.height +
+          FlowchartConstants.FLOWCHART_STEPS_GAP,
+      });
+    }
+
+    siblings.forEach((sibling, i) => {
+      const currentPosition = sibling.getCoordinates();
+      const associatedPreviousPosition = previousPositions[i];
+
+      const xDiff = currentPosition.x - associatedPreviousPosition.x;
+      const yDiff = currentPosition.y - associatedPreviousPosition.y;
+
+      const readjustChildrenCoordinates = (step: FlowchartStepComponent) => {
+        const currCoordinates = step.getCoordinates();
+        step.setCoordinates({
+          x: currCoordinates.x + xDiff,
+          y: currCoordinates.y + yDiff,
+        });
+
+        step.children.forEach(readjustChildrenCoordinates);
+      };
+
+      sibling.children.forEach(readjustChildrenCoordinates);
+    });
+  }
+
+  /**
+   * Seta coordenadas de um novo filho quando os seus irmãos já foram movimentados
+   */
+  private setDraggedSiblingStepsCoordinates(
+    newStep: FlowchartStepComponent,
+    siblings: Array<FlowchartStepComponent>,
+    parentCoordinates: FlowchartStepCoordinates
+  ): void {
+    const greaterXSiblingCoordinates = siblings
+      .sort((a, b) => {
+        const aCoords = a.getCoordinates();
+        const bCoords = b.getCoordinates();
+
+        if (aCoords.x > bCoords.x) {
+          return -1;
+        }
+        return 1;
+      })[0]
+      .getCoordinates();
+
+    newStep.setCoordinates({
+      x:
+        greaterXSiblingCoordinates.x +
+        greaterXSiblingCoordinates.width +
         FlowchartConstants.FLOWCHART_STEPS_GAP,
-    };
+      y:
+        parentCoordinates.y +
+        parentCoordinates.height +
+        FlowchartConstants.FLOWCHART_STEPS_GAP,
+    });
+    console.log(greaterXSiblingCoordinates);
   }
 
   private generateRandomId(): string {

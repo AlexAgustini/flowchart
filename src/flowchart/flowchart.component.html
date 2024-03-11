@@ -1,3 +1,8 @@
-<svg #svg [attr.viewBox]="getViewbox()" id="canvas-svg"></svg>
+<svg
+  #svg
+  [style.width.px]="getViewbox().width"
+  [style.height.px]="getViewbox().height"
+  id="canvas-svg"
+></svg>
 <ng-container #container></ng-container>
-<button (click)="logFlow()">log flow()</button>
+<button style="position: absolute" (click)="logFlow()">log flow()</button>
