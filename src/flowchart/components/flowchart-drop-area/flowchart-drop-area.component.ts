@@ -12,13 +12,14 @@ export class FlowchartDropAreaComponent extends FlowchartStepComponent {
   constructor(private dragService: DragService) {
     super();
   }
+
   /**
    * Observa drops de steps
    * @param event Evento de drag
    */
   @HostListener('drop', ['$event']) private onDrop(event: DragEvent) {
-    const stepName = event.dataTransfer.getData('STEP_NAME');
-    const data = event.dataTransfer.getData('data');
+    const stepName = this.dragService.getDragData('STEP_NAME');
+    const data = this.dragService.getDragData('data');
 
     this.removeSelf();
     this.parent.addChild({
@@ -30,18 +31,34 @@ export class FlowchartDropAreaComponent extends FlowchartStepComponent {
 
   @HostListener('dragover', ['$event'])
   private onDragOver(e) {
-    e.preventDefault();
+    // e.preventDefault();
   }
 
   @HostListener('dragenter', ['$event'])
   private onDragEnter(e) {
-    e.preventDefault();
-    this.dragService.isHoveringOverDropArea = true;
+    // e.preventDefault();
+    this.dragService.isDraggingOverDropAreaOrPath = true;
+
+    const stepName = this.dragService.getDragData('STEP_NAME');
+
+    this.removeSelf();
+    this.previewStep = this.parent.addChild({
+      type: stepName,
+    });
+
+    this.parent.toggleTreeOpacity();
   }
+
+  @HostListener('dragleave', ['$event']) dragEnd() {
+    console.log('dragend');
+    this.previewStep.removeSelf();
+  }
+
+  previewStep: FlowchartStepComponent;
 
   override ngOnDestroy() {
     setTimeout(() => {
-      this.dragService.isHoveringOverDropArea = false;
+      this.dragService.isDraggingOverDropAreaOrPath = false;
     }, 100);
   }
 }

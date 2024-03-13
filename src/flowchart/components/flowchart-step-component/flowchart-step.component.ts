@@ -13,10 +13,12 @@ import {
   ComponentRef,
   ElementRef,
   HostBinding,
+  HostListener,
   Input,
   OnDestroy,
   OnInit,
   Renderer2,
+  Type,
   inject,
 } from '@angular/core';
 import {
@@ -26,9 +28,9 @@ import {
 import { ConnectorsService } from '../../services/connectors.service';
 import { DOCUMENT } from '@angular/common';
 import { FlowchartStepsService } from '../../services/flowchart-steps.service';
-import { FlowchartCanvasService } from '../../services/flowchart-canvas.service';
 import { CoordinatesStorageService } from '../../services/coordinates-storage.service';
 import { FlowBlocksEnum } from '../../helpers/flowchart-steps-registry';
+import { FlowchartService } from '../../services/flowchart.service';
 
 @Component({
   standalone: true,
@@ -49,6 +51,9 @@ export class FlowchartStepComponent<T = any>
    */
   @Input()
   public id: string;
+  /**
+   * Tipo do step
+   */
   @Input()
   public type: FlowBlocksEnum;
   /**
@@ -56,11 +61,6 @@ export class FlowchartStepComponent<T = any>
    */
   @Input()
   protected data: T;
-  /**
-   * Coordenadas do step {@link CdkDrag}
-   */
-  @Input()
-  public coordinates: FlowchartStepCoordinates;
   /**
    * Referência ao componente do step
    */
@@ -77,17 +77,21 @@ export class FlowchartStepComponent<T = any>
   @Input()
   public afterStepDestroy: (
     step: FlowchartStepComponent,
-    recursive?: boolean
+    thisCoordinates: FlowchartStepCoordinates,
+    recursive?: boolean,
+    firstRecursion?: boolean
   ) => void;
 
   /**
    * Steps filhos
    */
   public children?: Array<FlowchartStepComponent> = [];
+
   /**
    * Contém coordenadas do step antes de começar a ser arrastado, para fazer cálculos de drag de steps children
    */
-  public dragPositionBeforeDragStart: FlowchartStepCoordinates;
+  private dragPositionBeforeDragStart: FlowchartStepCoordinates;
+
   /**
    * @private
    * @readonly
@@ -99,19 +103,19 @@ export class FlowchartStepComponent<T = any>
    * @readonly
    * Referência ao elemento nativo
    */
-  private readonly elementRef = inject(ElementRef);
+  public readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   /**
    * @private
    * @readonly
    * Serviço do flowchart
    */
-  private readonly flowchartStepsService = inject(FlowchartStepsService);
+  protected readonly flowchartStepsService = inject(FlowchartStepsService);
   /**
    * @private
    * @readonly
    * Serviço do flowchart
    */
-  private readonly flowchartCanvasService = inject(FlowchartCanvasService);
+  private readonly flowchartService = inject(FlowchartService);
   /**
    * @private
    * @readonly
@@ -165,12 +169,13 @@ export class FlowchartStepComponent<T = any>
    * Remove o flowchartStep
    * @param recursive Se deve remover os steps subsequentes
    */
-  protected removeSelf(recursive?: boolean): void {
+  public removeSelf(recursive?: boolean, firstRecursion = true): void {
+    const thisCoordinates = this.getCoordinates();
     this.compRef.destroy();
-    this.afterStepDestroy(this, recursive);
+    this.afterStepDestroy(this, thisCoordinates, recursive, firstRecursion);
 
     if (recursive) {
-      this.children.forEach((child) => child.removeSelf(true));
+      this.children.forEach((child) => child.removeSelf(true, false));
     }
   }
 
@@ -204,6 +209,16 @@ export class FlowchartStepComponent<T = any>
     this.children.forEach((child) => child.redrawConnectorsTree());
   }
 
+  public moveSelfAndAllChildren({ x, y }: Point) {
+    const thisCoordinates = this.getCoordinates();
+    this.setCoordinates({
+      x: thisCoordinates.x + x,
+      y: thisCoordinates.y + y,
+    });
+
+    this.children.forEach((child) => child.moveSelfAndAllChildren({ x, y }));
+  }
+
   /**
    * Retorna irmãos deste step
    */
@@ -218,6 +233,23 @@ export class FlowchartStepComponent<T = any>
     return CoordinatesStorageService.getStepCoordinates(this.id) != null;
   }
 
+  public toggleTreeOpacity() {
+    this.children.forEach((child) => {
+      child.opacity == '.3' ? (child.opacity = '1') : (child.opacity = '.3');
+      child.toggleTreeOpacity();
+    });
+  }
+
+  @HostListener('dragenter', ['$event']) dragEnter(e: DragEvent) {
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    return false;
+  }
+
+  @HostBinding('style.opacity') opacity = '1';
+  // @HostBinding('style.transition') transition = '.2s ease';
+
   /**
    * Seta callbacks para eventos de drag {@link dragDir}
    */
@@ -231,7 +263,7 @@ export class FlowchartStepComponent<T = any>
    * Seta limite de drag dentro do elemento do {@link FlowchartComponent}
    */
   private setCdkDragBoundary(): void {
-    this.dragDir.boundaryElement = this.flowchartCanvasService.flowchartEl;
+    this.dragDir.boundaryElement = this.flowchartStepsService.flowchartElement;
   }
 
   /**
@@ -239,6 +271,7 @@ export class FlowchartStepComponent<T = any>
    * @param dragEvent Event
    */
   private onDragStart(dragEvent: CdkDragStart) {
+    // this.animation = null;
     this.dragPositionBeforeDragStart = this.getCoordinates();
     this.children.forEach((child) => child.onDragStart(dragEvent));
   }
@@ -247,7 +280,9 @@ export class FlowchartStepComponent<T = any>
    * Callback after stopped dragging component
    * @param dragEvent Event
    */
-  private onDragEnd(e: CdkDragEnd) {}
+  private onDragEnd(e: CdkDragEnd) {
+    // this.animation = '.2s ease';
+  }
 
   /**
    * Callback when dragging component

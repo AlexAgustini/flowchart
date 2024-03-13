@@ -14,6 +14,7 @@ import { FlowchartService } from './flowchart.service';
 import { ConnectorsService } from './connectors.service';
 import { CoordinatesStorageService } from './coordinates-storage.service';
 import { FlowBlocksEnum, stepsObj } from '../helpers/flowchart-steps-registry';
+import { Point } from '@angular/cdk/drag-drop';
 
 @Injectable({
   providedIn: 'root',
@@ -26,7 +27,7 @@ export class FlowchartStepsService {
   /**
    * ElementRef do {@link FlowchartComponent}
    */
-  private flowchartElement!: ElementRef<HTMLElement>;
+  public flowchartElement!: ElementRef<HTMLElement>;
 
   constructor(
     private flowchartService: FlowchartService,
@@ -82,8 +83,7 @@ export class FlowchartStepsService {
    */
   private afterStepRender = (step: FlowchartStepComponent) => {
     this.setStepInitialCoordinates(step);
-    this.drawConnectors(step);
-    this.drawConnectors(step.parent);
+    this.flowchartService.reCenterFlow();
   };
 
   /**
@@ -92,7 +92,9 @@ export class FlowchartStepsService {
    */
   private afterStepDestroy = (
     destroyedStep: FlowchartStepComponent,
-    recursive?: boolean
+    destroyedStepCoordinates: FlowchartStepCoordinates,
+    recursive?: boolean,
+    firstRecursion?: boolean
   ) => {
     if (recursive) {
       destroyedStep.parent.children = [];
@@ -111,9 +113,28 @@ export class FlowchartStepsService {
     }
 
     this.clearDestroyedStepConnectors(destroyedStep);
-    this.drawConnectors(destroyedStep.parent);
+
+    destroyedStep.children.forEach((child) => {
+      child.moveSelfAndAllChildren({
+        x: 0,
+        y: -(
+          destroyedStepCoordinates.height +
+          FlowchartConstants.FLOWCHART_STEPS_GAP
+        ),
+      });
+    });
 
     this.flowchartService.removeStep(destroyedStep);
+
+    setTimeout(() => {
+      if (!destroyedStep.parent.children.length) {
+        if (recursive && !firstRecursion) return;
+
+        destroyedStep.parent.addChild({
+          type: FlowBlocksEnum.DROP_AREA,
+        });
+      }
+    }, 0);
   };
 
   private setStepData({
@@ -132,14 +153,14 @@ export class FlowchartStepsService {
     compRef.setInput('parent', parentStep);
     compRef.setInput('type', pendingStep.type);
 
-    this.setStepHierarchicalLogic({ compRef, parentStep, asSibling });
+    this.setStepParentChildrenRelation({ compRef, parentStep, asSibling });
 
     compRef.setInput('afterStepRender', this.afterStepRender);
     compRef.setInput('afterStepDestroy', this.afterStepDestroy);
     compRef.changeDetectorRef.detectChanges();
   }
 
-  private setStepHierarchicalLogic({
+  private setStepParentChildrenRelation({
     compRef,
     parentStep,
     asSibling = true,
@@ -164,13 +185,6 @@ export class FlowchartStepsService {
     if (parentStep) {
       parentStep.children.push(stepInstance);
     }
-  }
-
-  /**
-   * Desenha flechas que conectam os steps
-   */
-  private drawConnectors(step: FlowchartStepComponent): void {
-    this.connectorsService.drawConnectors(step);
   }
 
   /**
@@ -230,38 +244,26 @@ export class FlowchartStepsService {
         parentXCenter
       );
     } else {
-      const newStepCoordinates = newStep.getCoordinates();
-
-      // Caso o step esteja sendo inserido no meio de outros dois steps, é necessário jogar os steps subsequentes para baixo
-      if (newStep.children.length) {
-        const readjustChildrenCoordinates = (
-          step: FlowchartStepComponent,
-          previousStep: FlowchartStepComponent
-        ) => {
-          const newStepCoordinates = step.getCoordinates();
-          step.setCoordinates({
-            x: newStepCoordinates.x,
-            y:
-              newStepCoordinates.y +
-              +previousStep.getCoordinates().height +
-              FlowchartConstants.FLOWCHART_STEPS_GAP,
-          });
-
-          step.children.forEach((step) =>
-            readjustChildrenCoordinates(step, step.parent)
-          );
-        };
-
-        readjustChildrenCoordinates(newStep, newStep.parent);
-      }
+      const newStepDimensions = newStep.getCoordinates();
 
       newStep.setCoordinates({
-        x: parentXCenter - newStepCoordinates.width / 2,
+        x: parentXCenter - newStepDimensions.width / 2,
         y:
           parentCoordinates.y +
           parentCoordinates.height +
           FlowchartConstants.FLOWCHART_STEPS_GAP,
       });
+
+      // Caso o step esteja sendo inserido no meio de outros dois steps, é necessário jogar os steps subsequentes para baixo
+      if (newStep.children.length) {
+        newStep.children.forEach((child) =>
+          child.moveSelfAndAllChildren({
+            x: 0,
+            y:
+              newStepDimensions.height + FlowchartConstants.FLOWCHART_STEPS_GAP,
+          })
+        );
+      }
     }
   }
 
@@ -420,10 +422,9 @@ export class FlowchartStepsService {
         parentCoordinates.height +
         FlowchartConstants.FLOWCHART_STEPS_GAP,
     });
-    console.log(greaterXSiblingCoordinates);
   }
 
-  private generateRandomId(): string {
+  public generateRandomId(): string {
     return 's' + Date.now();
   }
 }

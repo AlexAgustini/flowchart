@@ -1,9 +1,9 @@
 import { Directive, HostBinding, HostListener, Input } from '@angular/core';
 import { FlowchartStep } from '../types/flowchart-step.type';
 import { DragService } from '../services/drag.service';
-import { FlowchartCanvasService } from '../services/flowchart-canvas.service';
 import { FlowchartStepsService } from '../services/flowchart-steps.service';
 import { CoordinatesStorageService } from '../services/coordinates-storage.service';
+import { FlowchartService } from '../services/flowchart.service';
 
 @Directive({
   selector: '[flowchartStep]',
@@ -13,8 +13,8 @@ export class FlowchartStepDirective {
   @Input({ required: true }) pendingStep!: FlowchartStep;
 
   constructor(
-    private flowchartCanvasService: FlowchartCanvasService,
     private flowchartStepsService: FlowchartStepsService,
+    private flowchartService: FlowchartService,
     private dragService: DragService
   ) {}
 
@@ -22,23 +22,27 @@ export class FlowchartStepDirective {
 
   @HostListener('dragend', ['$event']) onDragEnd(event: DragEvent) {
     event.preventDefault();
+    this.dragService.clearDragData();
 
     if (
       this.pendingStep.canDropAnywhere &&
-      !this.dragService.isHoveringOverDropArea &&
+      !this.dragService.isDraggingOverDropAreaOrPath &&
       this.isCursorInsideFlowchartContainer(event.x, event.y)
     ) {
       this.createStepWithFreePosition(event);
     }
+
+    this.dragService.onFlowchartDragEnd(event);
   }
 
   @HostListener('dragstart', ['$event']) onDragStart(e: DragEvent) {
-    e.dataTransfer.setData('STEP_NAME', this.pendingStep.type);
-    e.dataTransfer.setData('data', JSON.stringify(this.pendingStep.data));
-    e.dataTransfer.setData(
+    this.dragService.setDragData('STEP_NAME', this.pendingStep.type);
+    this.dragService.setDragData('data', this.pendingStep.data);
+    this.dragService.setDragData(
       'canDropAnywhere',
-      String(this.pendingStep.canDropAnywhere)
+      this.pendingStep.canDropAnywhere
     );
+    this.dragService.onFlowchartDragStart(e);
   }
 
   /**
@@ -46,8 +50,7 @@ export class FlowchartStepDirective {
    * @param x Retorna se a posição atual do mouse está dentro do flowchart container
    */
   private isCursorInsideFlowchartContainer(x: number, y: number): boolean {
-    const flowchartBoundingRect =
-      this.flowchartCanvasService.flowchartBoundingRect;
+    const flowchartBoundingRect = this.flowchartService.flowchartBoundingRect;
 
     return (
       x > flowchartBoundingRect.left &&
@@ -62,7 +65,7 @@ export class FlowchartStepDirective {
    * @param event Cria step na em posição livre dentro do flowchart
    */
   private createStepWithFreePosition(event: DragEvent): void {
-    const { x, y } = this.flowchartCanvasService.getPointXYRelativeToFlowchart({
+    const { x, y } = this.flowchartService.getPointXYRelativeToFlowchart({
       x: event.x,
       y: event.y,
     });

@@ -3,7 +3,6 @@ import { Point } from '@angular/cdk/drag-drop';
 import { FlowBlocksEnum } from '../helpers/flowchart-steps-registry';
 
 export type Flow = {
-  initialStep?: FlowchartStepComponent;
   steps?: Array<FlowchartStepComponent>;
   connectors?: Array<FlowchartStepConnector>;
 };

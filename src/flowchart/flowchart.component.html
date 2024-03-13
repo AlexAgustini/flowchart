@@ -1,8 +1,8 @@
-<svg
-  #svg
-  [style.width.px]="getViewbox().width"
-  [style.height.px]="getViewbox().height"
-  id="canvas-svg"
-></svg>
+<svg #svg id="canvas-svg"></svg>
 <ng-container #container></ng-container>
 <button style="position: absolute" (click)="logFlow()">log flow()</button>
+<button style="position: absolute; left: 100px" (click)="reCenterFlow()">
+  recenter flow()
+</button>
+
+<div class="flowchart-scroll-x-div"></div>
