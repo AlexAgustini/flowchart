@@ -4,7 +4,7 @@ import { RouterOutlet } from '@angular/router';
 import { FlowchartComponent } from '../flowchart/flowchart.component';
 import { FlowchartStepDirective } from '../flowchart/directives/flowchart-step.directive';
 import { CdkDrag, CdkDropList } from '@angular/cdk/drag-drop';
-import { FlowStepsEnum } from '../flowchart/helpers/flowchart-steps-registry';
+import { FlowchartStepsEnum } from '../flowchart/helpers/flowchart-steps.enum';
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -20,7 +20,9 @@ import { FlowStepsEnum } from '../flowchart/helpers/flowchart-steps-registry';
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
-  flowBlocksEnum = FlowStepsEnum;
+  flowStepsEnum = Object.values(FlowchartStepsEnum).filter(
+    (step) => step !== FlowchartStepsEnum.STEP_INITIAL
+  );
 
   title = 'flowchart';
 }

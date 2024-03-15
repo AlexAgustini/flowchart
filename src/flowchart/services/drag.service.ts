@@ -1,15 +1,9 @@
+import { FlowchartStepsEnum } from './../helpers/flowchart-steps.enum';
 import { FlowchartComponent } from './../flowchart.component';
 import { Injectable } from '@angular/core';
-import {
-  FlowchartStep,
-  FlowchartStepCoordinates,
-} from '../types/flowchart-step.type';
+import { FlowchartStepCoordinates } from '../types/flowchart-step.type';
 import { FlowchartService } from './flowchart.service';
 import { FlowchartConstants } from '../helpers/flowchart-constants';
-import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
-import { FlowStepsEnum } from '../helpers/flowchart-steps-registry';
-import { FlowchartStepResultDataType } from '../../steps/step-result/data/flowchart-step-result-data.type';
-import { FlowchartStepResultsEnum } from '../helpers/flowchart-step-results-enum';
 @Injectable({
   providedIn: 'root',
 })
@@ -28,7 +22,7 @@ export class DragService {
 
   public stepsOnDragStart: Array<{
     id: string;
-    type: FlowStepsEnum;
+    type: FlowchartStepsEnum;
     dimensions: FlowchartStepCoordinates;
   }>;
 
@@ -109,11 +103,7 @@ export class DragService {
    */
   private observeDragBelowStep(event: DragEvent): void {
     const isBelowStep = this.stepsOnDragStart.find((step) => {
-      if (
-        step.type !== FlowStepsEnum.STEP_RESULT &&
-        step.type !== FlowStepsEnum.INITIAL_STEP
-      )
-        return;
+      if (step.type == FlowchartStepsEnum.STEP_RESULT) return;
       return (
         event.offsetX >
           step.dimensions.x -
@@ -176,25 +166,7 @@ export class DragService {
       asPlaceholder: true,
     };
 
-    // Caso o pai não seja um stepResult ou initialStep, adiciona um stepResult antes do bloco placeholder
-    if (
-      parentStep.type != FlowStepsEnum.STEP_RESULT &&
-      parentStep.type != FlowStepsEnum.INITIAL_STEP
-    ) {
-      parentStep.addChild<FlowchartStepResultDataType>({
-        pendingComponent: {
-          type: FlowStepsEnum.STEP_RESULT,
-          data: {
-            resultType: parentStep.stepResultType as FlowchartStepResultsEnum,
-          },
-          children: [{ type: placeholderStep.pendingComponent.type }],
-        },
-        asSibling: false,
-        asPlaceholder: true,
-      });
-    } else {
-      parentStep.addChild(placeholderStep);
-    }
+    parentStep.addChild(placeholderStep);
   }
 
   /**
@@ -204,15 +176,5 @@ export class DragService {
     this.flowchartService
       .getAllPlaceholderSteps()
       .forEach((step) => step.removeSelf());
-  }
-
-  /**
-   * Retorna tipo de stepResult que deve ser criado acima do placeholder com base no pai do placeholder
-   * @param parentPlaceholder Pai do placeholder
-   */
-  private getParentPlaceholderStepResultData(
-    parentPlaceholder: FlowchartStepComponent
-  ): FlowchartStep {
-    return;
   }
 }

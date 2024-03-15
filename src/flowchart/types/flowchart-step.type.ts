@@ -1,7 +1,7 @@
 import { FlowchartStepsDataType } from './../helpers/flowchart-steps-data-type';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import { Point } from '@angular/cdk/drag-drop';
-import { FlowStepsEnum } from '../helpers/flowchart-steps-registry';
+import { FlowchartStepsEnum } from '../helpers/flowchart-steps.enum';
 
 export type Flow = {
   steps?: Array<FlowchartStepComponent>;
@@ -11,7 +11,7 @@ export type Flow = {
 export type FlowchartStep<
   T extends FlowchartStepsDataType = FlowchartStepsDataType
 > = {
-  type: FlowStepsEnum;
+  type: FlowchartStepsEnum;
   id?: string;
   canDropAnywhere?: boolean;
   data?: T;

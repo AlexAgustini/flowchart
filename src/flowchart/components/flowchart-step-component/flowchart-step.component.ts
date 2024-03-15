@@ -1,4 +1,3 @@
-import { FlowchartStepResultsEnum } from './../../helpers/flowchart-step-results-enum';
 import { FlowchartConstants } from '../../helpers/flowchart-constants';
 import { FlowchartComponent } from './../../flowchart.component';
 import {
@@ -29,9 +28,9 @@ import { ConnectorsService } from '../../services/connectors.service';
 import { DOCUMENT } from '@angular/common';
 import { FlowchartStepsService } from '../../services/flowchart-steps.service';
 import { CoordinatesStorageService } from '../../services/coordinates-storage.service';
-import { FlowStepsEnum } from '../../helpers/flowchart-steps-registry';
 import { FlowchartService } from '../../services/flowchart.service';
 import { FlowchartStepsDataType } from '../../helpers/flowchart-steps-data-type';
+import { FlowchartStepsEnum } from '../../helpers/flowchart-steps.enum';
 
 @Component({
   standalone: true,
@@ -57,7 +56,7 @@ export abstract class FlowchartStepComponent<
    * Tipo do step
    */
   @Input()
-  public type: FlowStepsEnum;
+  public type: FlowchartStepsEnum;
   /**
    * Dados do step
    */
@@ -88,13 +87,6 @@ export abstract class FlowchartStepComponent<
    */
   @HostBinding('style.transition') private transition: '.2s ease' | null =
     '.2s ease';
-
-  /**
-   * Tipo de resultado padrão que é gerado deste step
-   */
-  public abstract stepResultType:
-    | FlowchartStepResultsEnum
-    | FlowchartStepResultsEnum[];
 
   /**
    * Steps filhos
@@ -201,7 +193,8 @@ export abstract class FlowchartStepComponent<
   private readonly dragDir = inject(CdkDrag);
 
   ngOnInit() {
-    if (this.type == FlowStepsEnum.INITIAL_STEP) this.dragDir.disabled = true;
+    if (this.type == FlowchartStepsEnum.STEP_INITIAL)
+      this.dragDir.disabled = true;
   }
 
   ngAfterViewInit() {

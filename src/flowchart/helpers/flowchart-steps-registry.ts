@@ -1,38 +1,63 @@
-import { StepResultComponent } from '../../steps/step-result/step-result.component';
-import { Block1Component } from '../../steps/block1/block1.component';
-import { Block2Component } from '../../steps/block2/block2.component';
 import { Type } from '@angular/core';
-import { InitialStepComponent } from '../../steps/initial-step/initial-step.component';
-import { ConditionalBlock } from '../../steps/conditional-block/conditional-block.component';
-
-export enum FlowStepsEnum {
-  INITIAL_STEP = 'INITIAL_STEP',
-  STEP_RESULT = 'STEP_RESULT',
-  CONDITIONAL = 'CONDITIONAL',
-  BLOCK_1 = 'BLOCK_1',
-  BLOCK_1_PLACEHOLDER = 'BLOCK_1_PLACEHOLDER',
-  BLOCK_2 = 'BLOCK_2',
-}
+import { FlowchartStepsEnum } from './flowchart-steps.enum';
+import { FlowchartStepInitialComponent } from '../../steps/flowchart-step-initial/flowchart-step-initial.component';
+import { FlowchartStepConditionalComponent } from '../../steps/flowchart-step-conditional/flowchart-step-conditional.component';
+import { FlowchartStepResultComponent } from '../../steps/flowchart-step-result/flowchart-step-result.component';
+import { FlowchartStepFinalizationComponent } from '../../steps/flowchart-step-finalization/flowchart-step-finalization.component';
+import { FlowchartStepScriptComponent } from '../../steps/flowchart-step-script/flowchart-step-script.component';
+import { FlowchartStepRequestComponent } from '../../steps/flowchart-step-request/flowchart-step-request.component';
+import { FlowchartStepFlowRequestComponent } from '../../steps/flowchart-step-flow-request/flowchart-step-flow-request';
+import { FlowchartStepCollectionComponent } from '../../steps/flowchart-step-collection/flowchart-step-collection.component';
+import { FlowchartStepLoopStartComponent } from '../../steps/flowchart-step-loop-start/flowchart-step-loop-start.component';
+import { FlowchartStepLoopEndComponent } from '../../steps/flowchart-step-loop-end/flowchart-step-loop-end.component';
+import { FlowchartStepNotificationComponent } from '../../steps/flowchart-step-notification/flowchart-step-notification.component';
 
 export const stepsObj: Array<{
-  type: FlowStepsEnum;
+  type: FlowchartStepsEnum;
   component: Type<any>;
 }> = [
   {
-    type: FlowStepsEnum.INITIAL_STEP,
-    component: InitialStepComponent,
+    type: FlowchartStepsEnum.STEP_INITIAL,
+    component: FlowchartStepInitialComponent,
   },
   {
-    type: FlowStepsEnum.CONDITIONAL,
-    component: ConditionalBlock,
+    type: FlowchartStepsEnum.STEP_FINALIZATION,
+    component: FlowchartStepFinalizationComponent,
   },
   {
-    type: FlowStepsEnum.STEP_RESULT,
-    component: StepResultComponent,
+    type: FlowchartStepsEnum.STEP_SCRIPT,
+    component: FlowchartStepScriptComponent,
   },
   {
-    type: FlowStepsEnum.BLOCK_1,
-    component: Block1Component,
+    type: FlowchartStepsEnum.STEP_REQUEST,
+    component: FlowchartStepRequestComponent,
   },
-  { type: FlowStepsEnum.BLOCK_2, component: Block2Component },
+  {
+    type: FlowchartStepsEnum.STEP_FLOW_REQUEST,
+    component: FlowchartStepFlowRequestComponent,
+  },
+  {
+    type: FlowchartStepsEnum.STEP_COLLECTION,
+    component: FlowchartStepCollectionComponent,
+  },
+  {
+    type: FlowchartStepsEnum.STEP_NOTIFICATION,
+    component: FlowchartStepNotificationComponent,
+  },
+  {
+    type: FlowchartStepsEnum.STEP_LOOP_START,
+    component: FlowchartStepLoopStartComponent,
+  },
+  {
+    type: FlowchartStepsEnum.STEP_LOOP_END,
+    component: FlowchartStepLoopEndComponent,
+  },
+  {
+    type: FlowchartStepsEnum.STEP_CONDITIONAL,
+    component: FlowchartStepConditionalComponent,
+  },
+  {
+    type: FlowchartStepsEnum.STEP_RESULT,
+    component: FlowchartStepResultComponent,
+  },
 ];

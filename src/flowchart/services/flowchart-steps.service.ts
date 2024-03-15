@@ -13,8 +13,9 @@ import {
 import { FlowchartService } from './flowchart.service';
 import { ConnectorsService } from './connectors.service';
 import { CoordinatesStorageService } from './coordinates-storage.service';
-import { FlowStepsEnum, stepsObj } from '../helpers/flowchart-steps-registry';
+import { stepsObj } from '../helpers/flowchart-steps-registry';
 import { FlowchartStepsDataType } from '../helpers/flowchart-steps-data-type';
+import { FlowchartStepsEnum } from '../helpers/flowchart-steps.enum';
 
 @Injectable({
   providedIn: 'root',
@@ -224,7 +225,7 @@ export class FlowchartStepsService {
    * @param step
    */
   private setStepInitialCoordinates(step: FlowchartStepComponent) {
-    if (step.type == FlowStepsEnum.INITIAL_STEP) {
+    if (step.type == FlowchartStepsEnum.STEP_INITIAL) {
       step.setCoordinates({
         x:
           this.flowchartElement.nativeElement.scrollWidth / 2 -

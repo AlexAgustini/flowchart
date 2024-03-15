@@ -9,9 +9,9 @@ import { FlowchartService } from './services/flowchart.service';
 import { FlowchartStep } from './types/flowchart-step.type';
 import { NgStyle } from '@angular/common';
 import { ConnectorsService } from './services/connectors.service';
-import { FlowStepsEnum } from './helpers/flowchart-steps-registry';
 import { DragService } from './services/drag.service';
 import { FlowchartStepsService } from './services/flowchart-steps.service';
+import { FlowchartStepsEnum } from './helpers/flowchart-steps.enum';
 
 @Component({
   standalone: true,
@@ -78,13 +78,13 @@ export class FlowchartComponent {
 }
 
 const mock: FlowchartStep = {
-  type: FlowStepsEnum.INITIAL_STEP,
+  type: FlowchartStepsEnum.STEP_INITIAL,
   data: {
     title: '1st component',
   },
   children: [
     {
-      type: FlowStepsEnum.BLOCK_2,
+      type: FlowchartStepsEnum.STEP_SCRIPT,
     },
   ],
 };

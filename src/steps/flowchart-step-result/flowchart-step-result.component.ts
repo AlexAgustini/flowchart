@@ -4,14 +4,12 @@ import { FlowchartStepResultDataType } from './data/flowchart-step-result-data.t
 import { NgIf } from '@angular/common';
 import { FlowchartStepResultsEnum } from '../../flowchart/helpers/flowchart-step-results-enum';
 @Component({
-  templateUrl: './step-result.component.html',
-  styleUrl: './step-result.component.scss',
+  templateUrl: './flowchart-step-result.component.html',
+  styleUrl: './flowchart-step-result.component.scss',
   imports: [NgIf],
   standalone: true,
 })
-export class StepResultComponent extends FlowchartStepComponent<FlowchartStepResultDataType> {
-  public override stepResultType: FlowchartStepResultsEnum = null;
-
+export class FlowchartStepResultComponent extends FlowchartStepComponent<FlowchartStepResultDataType> {
   public flowchartStepResultEnum = FlowchartStepResultsEnum;
   override ngOnInit(): void {
     super.ngOnInit();
