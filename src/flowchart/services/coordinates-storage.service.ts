@@ -1,6 +1,6 @@
 import { FlowchartStepCoordinates } from '../types/flowchart-step.type';
 
-export class CoordinatesStorageService {
+export abstract class CoordinatesStorageService {
   static setStepCoordinates(
     stepId: string,
     coordinates: FlowchartStepCoordinates

@@ -1,14 +1,8 @@
 import { Flow, FlowchartStepConnector } from './../types/flowchart-step.type';
-import {
-  ElementRef,
-  Injectable,
-  Renderer2,
-  RendererFactory2,
-  ViewContainerRef,
-} from '@angular/core';
+import { ElementRef, Injectable, ViewContainerRef } from '@angular/core';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import { Point } from '@angular/cdk/drag-drop';
-import { FlowchartConstants } from '../helpers/flowchart-constants.enum';
+import { FlowchartConstants } from '../helpers/flowchart-constants';
 
 @Injectable({
   providedIn: 'root',
@@ -31,6 +25,18 @@ export class FlowchartService {
    * Referência ao svg no qual são desenhados os conectores
    */
   public svgCanvas!: ElementRef<SVGElement>;
+
+  /**
+   * Flag que indica se um evento de drag está acontecendo
+   */
+  private _isDragging: boolean;
+
+  public get isDragging(): boolean {
+    return this._isDragging;
+  }
+  public set isDragging(value: boolean) {
+    this._isDragging = value;
+  }
 
   public registerFlowchart(
     flowchartViewContainer: ViewContainerRef,
@@ -84,11 +90,28 @@ export class FlowchartService {
   }
 
   /**
-   * Recentraliza os steps do flow e aumenta width do {@link flowchartElement} caso necessário
+   * Recentraliza os steps do flow e aumenta dimensões do {@link flowchartElement} caso necessário
    */
   public reCenterFlow(): void {
-    if (!this.steps.length) return;
+    if (!this.steps.length || this.isDragging) return;
 
+    this.treatFlowchartDimensions();
+    this.resizeSvgCanvas();
+
+    const rootStep = this.getRootStep();
+    const rootStepCoordinates = rootStep.getCoordinates();
+    const flowchartXCenter =
+      this.flowchartElement.nativeElement.scrollWidth / 2;
+    const rootStepXDiff =
+      flowchartXCenter -
+      (rootStepCoordinates.x + rootStepCoordinates.width / 2);
+
+    rootStep.moveSelfAndAllChildren({ x: rootStepXDiff, y: 0 });
+  }
+  /**
+   * Manipula width e height do {@link flowchartElement} de acordo com as dimensões dos teps
+   */
+  private treatFlowchartDimensions(): void {
     // Step mais à esquerda do chart
     const lowestXStep = this.steps
       .reduce((prev, curr) => {
@@ -106,37 +129,78 @@ export class FlowchartService {
       })
       .getCoordinates();
 
-    const lengthBetweenSteps =
-      highestXStep.x + highestXStep.width - lowestXStep.x;
-    const flowClientWidth = this.flowchartElement.nativeElement.clientWidth;
+    // Step mais abaixo no chart
+    const highestYStep = this.steps
+      .reduce((prev, curr) => {
+        return prev.getCoordinates().y + prev.getCoordinates().height >
+          curr.getCoordinates().y + curr.getCoordinates().height
+          ? prev
+          : curr;
+      })
+      .getCoordinates();
 
-    if (lengthBetweenSteps > flowClientWidth) {
-      // Adiciona padding mínimo left / right
-      const totalWidth =
-        lengthBetweenSteps + FlowchartConstants.FLOWCHART_INLINE_PADDING * 2;
+    const flowchartScrollWidth =
+      this.flowchartElement.nativeElement.scrollWidth;
+    const flowchartScrollHeight =
+      this.flowchartElement.nativeElement.scrollHeight;
 
-      // Não é possível alterar o scrollWidth de um elemento diretamente,
-      // então é setada a width total em uma div helper que é filha do flowchartElement
-      const scrollWidthDiv: HTMLDivElement =
-        this.flowchartElement.nativeElement.querySelector(
-          `.${FlowchartConstants.FLOWCHART_SCROLL_WIDTH_DIV_CLASS}`
-        );
+    const isXOverflowingToLeft =
+      lowestXStep.x - FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING < 0;
+    const isXOverflowingToRight =
+      highestXStep.x +
+        highestXStep.width +
+        FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING >
+      flowchartScrollWidth;
+    const isYOverflowing =
+      highestYStep.y +
+        highestYStep.height +
+        FlowchartConstants.FLOWCHART_MIN_BOTTOM_PADDING * 4 >=
+      flowchartScrollHeight;
 
-      scrollWidthDiv.style.width = `${totalWidth}px`;
-
-      this.resizeSvgCanvas();
+    if (isXOverflowingToLeft) {
+      this.setScrollWidthDiv(
+        flowchartScrollWidth +
+          +Math.abs(lowestXStep.x) +
+          lowestXStep.width +
+          FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING
+      );
     }
 
-    const rootStep = this.getRootStep();
-    const rootStepCoordinates = rootStep.getCoordinates();
+    if (isXOverflowingToRight) {
+      this.setScrollWidthDiv(
+        flowchartScrollWidth +
+          +highestXStep.x +
+          highestXStep.width +
+          FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING
+      );
 
-    const flowchartXCenter =
-      this.flowchartElement.nativeElement.scrollWidth / 2;
-    const rootStepXDiff =
-      flowchartXCenter -
-      (rootStepCoordinates.x + rootStepCoordinates.width / 2);
+      this.flowchartElement.nativeElement.scrollTo({ left: highestXStep.x });
+    }
 
-    rootStep.moveSelfAndAllChildren({ x: rootStepXDiff, y: 0 });
+    if (isYOverflowing) {
+      this.setScrollHeightDiv(
+        flowchartScrollHeight +
+          FlowchartConstants.FLOWCHART_MIN_BOTTOM_PADDING * 4
+      );
+    }
+  }
+
+  private setScrollHeightDiv(height: number): void {
+    const scrollHeightDiv: HTMLDivElement =
+      this.flowchartElement.nativeElement.querySelector(
+        `.${FlowchartConstants.FLOWCHART_SCROLL_HEIGHT_DIV_CLASS}`
+      );
+
+    scrollHeightDiv.style.height = `${height}px`;
+  }
+
+  private setScrollWidthDiv(width: number): void {
+    const scrollWidthDiv: HTMLDivElement =
+      this.flowchartElement.nativeElement.querySelector(
+        `.${FlowchartConstants.FLOWCHART_SCROLL_WIDTH_DIV_CLASS}`
+      );
+
+    scrollWidthDiv.style.width = `${width}px`;
   }
 
   /**
@@ -144,7 +208,10 @@ export class FlowchartService {
    */
   private resizeSvgCanvas(): void {
     this.svgCanvas.nativeElement.style.height = `${this.flowchartElement.nativeElement.scrollHeight}px`;
-    this.svgCanvas.nativeElement.style.width = `${this.flowchartElement.nativeElement.scrollWidth}px`;
+    this.svgCanvas.nativeElement.style.width = `${
+      this.flowchartElement.nativeElement.scrollWidth -
+      FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING
+    }px`;
   }
 
   /**
@@ -174,6 +241,21 @@ export class FlowchartService {
    */
   public getStepById(id: string): FlowchartStepComponent {
     return this.steps.find((step) => step.id == id);
+  }
+
+  /**
+   * Retorna steps placeholder atuais
+   *
+   */
+  public getAllPlaceholderSteps(): Array<FlowchartStepComponent> {
+    return this.steps.filter((step) => step.isPlaceholder);
+  }
+
+  /**
+   * Retorna steps placeholder atuais
+   */
+  public hasPlaceholderSteps(): boolean {
+    return this.steps.some((step) => step.isPlaceholder);
   }
 
   /**

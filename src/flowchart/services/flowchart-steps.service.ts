@@ -1,4 +1,4 @@
-import { FlowchartConstants } from './../helpers/flowchart-constants.enum';
+import { FlowchartConstants } from '../helpers/flowchart-constants';
 import {
   ComponentRef,
   ElementRef,
@@ -13,8 +13,8 @@ import {
 import { FlowchartService } from './flowchart.service';
 import { ConnectorsService } from './connectors.service';
 import { CoordinatesStorageService } from './coordinates-storage.service';
-import { FlowBlocksEnum, stepsObj } from '../helpers/flowchart-steps-registry';
-import { Point } from '@angular/cdk/drag-drop';
+import { FlowStepsEnum, stepsObj } from '../helpers/flowchart-steps-registry';
+import { FlowchartStepsDataType } from '../helpers/flowchart-steps-data-type';
 
 @Injectable({
   providedIn: 'root',
@@ -43,38 +43,122 @@ export class FlowchartStepsService {
   }
 
   /**
-   * Cria step dinamicamente
-   * @param pendingComponent Componente dinâmico a ser criado
+   * Cria step
+   * @param pendingStep Step a ser criado
    * @param parentStep Step pai do step a ser criado
+   * @param asSibling Se o step que será criado deve ser criado como irmão dos steps children atuais do parentStep - default false
+   * @param asPlaceholder Se deve ser criado em modo de placeholder - default false
    */
-  public createStep({
+  public createStep<T extends FlowchartStepsDataType = FlowchartStepsDataType>({
     pendingStep,
     parentStep,
-    asSibling = true,
+    asSibling = false,
+    asPlaceholder = false,
   }: {
-    pendingStep: FlowchartStep;
+    pendingStep: FlowchartStepComponent<T> | FlowchartStep<T>;
     parentStep?: FlowchartStepComponent;
     asSibling?: boolean;
-  }): FlowchartStepComponent {
-    const compRef: ComponentRef<FlowchartStepComponent> =
+    asPlaceholder?: boolean;
+  }): FlowchartStepComponent<T> {
+    if (!pendingStep) return;
+    const compRef: ComponentRef<FlowchartStepComponent<T>> =
       this.flowchartViewContainer.createComponent(
         stepsObj.find((step) => step.type == pendingStep.type).component
       );
+
+    this.flowchartService.addStep(compRef.instance);
 
     this.setStepData({
       pendingStep,
       compRef,
       parentStep,
       asSibling,
+      asPlaceholder,
     });
 
-    this.flowchartService.addStep(compRef.instance);
-
-    pendingStep.children?.forEach((child) =>
-      this.createStep({ pendingStep: child, parentStep: compRef.instance })
-    );
+    pendingStep.children?.forEach((child: FlowchartStepComponent<T>) => {
+      this.createStep({
+        pendingStep: child,
+        parentStep: compRef.instance,
+        asPlaceholder,
+      });
+    });
 
     return compRef.instance;
+  }
+
+  /**
+   * Seta inputs e configurações dos steps após criação
+   * @param pendingStep Step a ser criado
+   * @param compRef Referência ao ComponentRef do componente criado
+   * @param parentStep Step pai do step a ser criado
+   * @param asSibling Se o step que será criado deve ser criado como irmão dos steps children atuais do parentStep - default false
+   * @param asPlaceholder Se deve ser criado em modo de placeholder - default false
+   */
+  private setStepData({
+    pendingStep,
+    compRef,
+    parentStep,
+    asSibling,
+    asPlaceholder,
+  }: {
+    pendingStep: FlowchartStepComponent | FlowchartStep;
+    compRef: ComponentRef<FlowchartStepComponent>;
+    parentStep?: FlowchartStepComponent;
+    asSibling: boolean;
+    asPlaceholder: boolean;
+  }) {
+    compRef.instance.id = pendingStep.id ?? this.generateRandomId();
+    compRef.instance.data = pendingStep.data;
+    compRef.instance.compRef = compRef;
+    compRef.instance.parent = parentStep;
+    compRef.instance.type = pendingStep.type;
+
+    this.setStepParentChildrenRelation({
+      newStep: compRef.instance,
+      parentStep,
+      asSibling,
+    });
+
+    compRef.instance.afterStepRender = this.afterStepRender;
+    compRef.instance.afterStepDestroy = this.afterStepDestroy;
+
+    if (asPlaceholder) {
+      compRef.instance.isPlaceholder = true;
+    }
+    compRef.changeDetectorRef.detectChanges();
+  }
+
+  /**
+   * Faz tratamento de relações hierárquicas parent/children após criação de step
+   * @param compRef Referência ao ComponentRef do componente criado
+   * @param parentStep Step pai do step a ser criado
+   * @param asSibling Se o step que será criado deve ser criado como irmão dos steps children atuais do parentStep - default false
+   */
+  private setStepParentChildrenRelation({
+    newStep,
+    parentStep,
+    asSibling,
+  }: {
+    newStep: FlowchartStepComponent;
+    parentStep?: FlowchartStepComponent;
+    asSibling: boolean;
+  }) {
+    if (!parentStep) return;
+    if (!asSibling) {
+      parentStep.children.forEach((child) => (child.parent = newStep));
+
+      newStep.children = parentStep.children;
+      parentStep.children = [];
+
+      newStep.children.forEach((child) =>
+        this.removeConnector(parentStep.id, child.id)
+      );
+    }
+
+    if (parentStep) {
+      parentStep.children.push(newStep);
+    }
   }
 
   /**
@@ -93,11 +177,10 @@ export class FlowchartStepsService {
   private afterStepDestroy = (
     destroyedStep: FlowchartStepComponent,
     destroyedStepCoordinates: FlowchartStepCoordinates,
-    recursive?: boolean,
-    firstRecursion?: boolean
+    recursive?: boolean
   ) => {
     if (recursive) {
-      destroyedStep.parent.children = [];
+      if (destroyedStep.parent) destroyedStep.parent.children = [];
     } else {
       destroyedStep.children?.forEach((child) => {
         child.parent = destroyedStep.parent;
@@ -112,9 +195,11 @@ export class FlowchartStepsService {
       destroyedStep.parent.children.push(...destroyedStep.children);
     }
 
-    this.clearDestroyedStepConnectors(destroyedStep);
+    this.removeConnector(destroyedStep.parent?.id, destroyedStep.id);
 
     destroyedStep.children.forEach((child) => {
+      this.removeConnector(destroyedStep.id, child.id);
+
       child.moveSelfAndAllChildren({
         x: 0,
         y: -(
@@ -125,74 +210,7 @@ export class FlowchartStepsService {
     });
 
     this.flowchartService.removeStep(destroyedStep);
-
-    setTimeout(() => {
-      if (!destroyedStep.parent.children.length) {
-        if (recursive && !firstRecursion) return;
-
-        destroyedStep.parent.addChild({
-          type: FlowBlocksEnum.DROP_AREA,
-        });
-      }
-    }, 0);
   };
-
-  private setStepData({
-    pendingStep,
-    compRef,
-    parentStep,
-    asSibling = true,
-  }: {
-    pendingStep: FlowchartStep;
-    compRef: ComponentRef<FlowchartStepComponent>;
-    parentStep?: FlowchartStepComponent;
-    asSibling: boolean;
-  }) {
-    compRef.setInput('id', pendingStep.id ?? this.generateRandomId());
-    compRef.setInput('compRef', compRef);
-    compRef.setInput('parent', parentStep);
-    compRef.setInput('type', pendingStep.type);
-
-    this.setStepParentChildrenRelation({ compRef, parentStep, asSibling });
-
-    compRef.setInput('afterStepRender', this.afterStepRender);
-    compRef.setInput('afterStepDestroy', this.afterStepDestroy);
-    compRef.changeDetectorRef.detectChanges();
-  }
-
-  private setStepParentChildrenRelation({
-    compRef,
-    parentStep,
-    asSibling = true,
-  }: {
-    compRef: ComponentRef<FlowchartStepComponent>;
-    parentStep?: FlowchartStepComponent;
-    asSibling: boolean;
-  }) {
-    const stepInstance = compRef.instance;
-
-    if (!asSibling) {
-      parentStep.children.forEach((child) => (child.parent = stepInstance));
-
-      stepInstance.children = parentStep.children.splice(
-        0,
-        parentStep.children.length
-      );
-
-      this.removeConnector(parentStep.id, stepInstance.children[0]?.id);
-    }
-
-    if (parentStep) {
-      parentStep.children.push(stepInstance);
-    }
-  }
-
-  /**
-   * Limpa conectores antigos, caso não existam mais
-   */
-  private clearDestroyedStepConnectors(step: FlowchartStepComponent): void {
-    this.connectorsService.clearDestroyedStepConnectors(step);
-  }
 
   /**
    * Limpa conectores antigos, caso não existam mais
@@ -206,7 +224,7 @@ export class FlowchartStepsService {
    * @param step
    */
   private setStepInitialCoordinates(step: FlowchartStepComponent) {
-    if (step.type == FlowBlocksEnum.INITIAL_STEP) {
+    if (step.type == FlowStepsEnum.INITIAL_STEP) {
       step.setCoordinates({
         x:
           this.flowchartElement.nativeElement.scrollWidth / 2 -

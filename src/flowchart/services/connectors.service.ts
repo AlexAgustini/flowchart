@@ -10,6 +10,7 @@ import {
   FlowchartStepCoordinates,
 } from '../types/flowchart-step.type';
 import { FlowchartService } from './flowchart.service';
+import { FlowchartConstants } from '../helpers/flowchart-constants';
 
 @Injectable({
   providedIn: 'root',
@@ -74,10 +75,10 @@ export class ConnectorsService {
     );
     this.renderer2.appendChild(this.svgCanvas, path);
     this.renderer2.setAttribute(path, 'id', `${parentId}-${childId}`);
+    this.renderer2.addClass(path, FlowchartConstants.FLOWCHART_CONNECTOR_CLASS);
 
     const connector = { path, parentId, childId };
     this.flowchartService.addConnector(connector);
-    this.observePathEvents(path);
 
     return connector;
   }
@@ -110,20 +111,14 @@ export class ConnectorsService {
     const controlPointY2 = childElYTop - hypotenuse;
 
     // Construct the SVG path
-    let pathD = `M${parentElXCenter},${parentElYBottom} C${controlPointX1},${controlPointY1} ${controlPointX2},${controlPointY2} ${childElXCenter},${childElYTop}`;
 
-    path.setAttribute('d', pathD);
-  }
+    const initialPath = `M${parentElXCenter},${parentElYBottom} C${parentElXCenter},${parentElYBottom} ${parentElXCenter},${parentElYBottom} ${parentElXCenter},${parentElYBottom}`;
+    path.setAttribute('d', initialPath);
 
-  /**
-   * Remove conectores de um step destruído
-   * @param step Step destruído
-   */
-  public clearDestroyedStepConnectors(step: FlowchartStepComponent): void {
-    if (!step) return;
-
-    this.removeConnector(step.parent?.id, step.id);
-    step.children.forEach((child) => this.removeConnector(step.id, child.id));
+    const pathD = `M${parentElXCenter},${parentElYBottom} C${controlPointX1},${controlPointY1} ${controlPointX2},${controlPointY2} ${childElXCenter},${childElYTop}`;
+    setTimeout(() => {
+      path.setAttribute('d', pathD);
+    }, 50);
   }
 
   /**
@@ -155,14 +150,5 @@ export class ConnectorsService {
       (connector) =>
         connector.parentId == parentId && connector.childId == childId
     );
-  }
-
-  /**
-   * Observa eventos de mouse emitidos pelo path
-   */
-  private observePathEvents(path: SVGPathElement): void {
-    path.addEventListener('dragover', (e) => {
-      // console.log(e);
-    });
   }
 }

@@ -2,58 +2,35 @@ import { FlowchartComponent } from './../flowchart.component';
 import { Injectable } from '@angular/core';
 import {
   FlowchartStep,
-  FlowchartStepConnector,
+  FlowchartStepCoordinates,
 } from '../types/flowchart-step.type';
 import { FlowchartService } from './flowchart.service';
-import { FlowchartConstants } from '../helpers/flowchart-constants.enum';
+import { FlowchartConstants } from '../helpers/flowchart-constants';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
-import { FlowchartStepsService } from './flowchart-steps.service';
-import { FlowBlocksEnum } from '../helpers/flowchart-steps-registry';
-
+import { FlowStepsEnum } from '../helpers/flowchart-steps-registry';
+import { FlowchartStepResultDataType } from '../../steps/step-result/data/flowchart-step-result-data.type';
+import { FlowchartStepResultsEnum } from '../helpers/flowchart-step-results-enum';
 @Injectable({
   providedIn: 'root',
 })
 export class DragService {
-  constructor(
-    private flowchartService: FlowchartService,
-    private flowchartStepsService: FlowchartStepsService
-  ) {}
+  constructor(private flowchartService: FlowchartService) {}
 
   /**
    * Map de dados transferidos no dragEvent do {@link FlowchartComponent}
    */
   private dragData: Map<string, any> = new Map();
+
   /**
-   * Referência ao componente placeholder atual sendo exibido
+   * Flag que controla tempo mínimo de delay entre criação de placeholders
    */
-  private currentPlaceholder: FlowchartStepComponent;
-  /**
-   * Referência ao pai do componente placeholder atual sendo exibido
-   */
-  private currentPlaceholderParent: FlowchartStepComponent;
-  private connectorsOnDragStart: Array<{
-    connector: FlowchartStepConnector;
-    dimensions: DOMRect;
+  private isOnPlaceholderCreationDelay: boolean;
+
+  public stepsOnDragStart: Array<{
+    id: string;
+    type: FlowStepsEnum;
+    dimensions: FlowchartStepCoordinates;
   }>;
-
-  /**
-   * Flag que controla se está ocorrendo drag encima de uma droparea ou de um path, utilizado para steps que podem ser dropados
-   * em qualquer lugar, para não criar mais de um step
-   */
-  private _isDraggingOverDropAreaOrPath: boolean;
-
-  /**
-   * {@link _isDraggingOverDropAreaOrPath}
-   */
-  public get isDraggingOverDropAreaOrPath(): boolean {
-    return this._isDraggingOverDropAreaOrPath;
-  }
-  /**
-   * {@link _isDraggingOverDropAreaOrPath}
-   */
-  public set isDraggingOverDropAreaOrPath(value: boolean) {
-    this._isDraggingOverDropAreaOrPath = value;
-  }
 
   /**
    * Seta key no {@link dragData}
@@ -91,12 +68,14 @@ export class DragService {
    * Observa eventos de dragover sobre o {@link FlowchartComponent}
    * @param e Evento de drag
    */
-  public onFlowchartDragStart(e: DragEvent): void {
-    this.connectorsOnDragStart = Array.from(
-      this.flowchartService.connectors.map((connector) => {
+  public onFlowchartDragStart(event: DragEvent): void {
+    this.flowchartService.isDragging = true;
+    this.stepsOnDragStart = Array.from(
+      this.flowchartService.steps.map((step) => {
         return {
-          connector: connector,
-          dimensions: connector.path.getBoundingClientRect(),
+          id: step.id,
+          type: step.type,
+          dimensions: step.getCoordinates(),
         };
       })
     );
@@ -106,16 +85,8 @@ export class DragService {
    * Observa eventos de dragover sobre o {@link FlowchartComponent}
    * @param e Evento de drag
    */
-  public onFlowchartDragEnd(e: DragEvent): void {
-    this.connectorsOnDragStart = null;
-  }
-
-  /**
-   * Observa eventos de dragover sobre o {@link FlowchartComponent}
-   * @param e Evento de drag
-   */
-  public onFlowchartDragOver(e: DragEvent): void {
-    this.observeDragOverConnectors(e);
+  public onFlowchartDragOver(event: DragEvent): void {
+    this.observeDragBelowStep(event);
   }
 
   /**
@@ -123,57 +94,59 @@ export class DragService {
    * @param e Evento de drag
    */
   public onFlowchartDrop(e: DragEvent): void {
-    this.currentPlaceholder?.toggleTreeOpacity();
-
-    if (this.currentPlaceholder) {
-      this.currentPlaceholder.elementRef.nativeElement.classList.remove(
-        'placeholder'
-      );
+    this.stepsOnDragStart = null;
+    this.flowchartService.isDragging = false;
+    if (this.flowchartService.hasPlaceholderSteps()) {
+      this.flowchartService
+        .getAllPlaceholderSteps()
+        .forEach((step) => (step.isPlaceholder = false));
     }
-
-    this.currentPlaceholder = null;
-    this.currentPlaceholderParent = null;
   }
 
   /**
-   * Observa eventos de dragover sobre o {@link FlowchartComponent} e cria placeholder de componentes ao ocorrer um drag perto de um path
-   * @param e Evento de drag
+   * Observa drag abaixo de steps para criação de steps placeholder
+   * @param event
    */
-  private observeDragOverConnectors(e: DragEvent): void {
-    const nearestConnector = this.connectorsOnDragStart.find((connector) => {
-      const connectorDimensions = connector.dimensions;
-
-      const { x: connectorX, y: connectorY } =
-        this.flowchartService.getPointXYRelativeToFlowchart({
-          x: connectorDimensions.x,
-          y: connectorDimensions.y,
-        });
-
+  private observeDragBelowStep(event: DragEvent): void {
+    const isBelowStep = this.stepsOnDragStart.find((step) => {
+      if (
+        step.type !== FlowStepsEnum.STEP_RESULT &&
+        step.type !== FlowStepsEnum.INITIAL_STEP
+      )
+        return;
       return (
-        e.offsetX >
-          connectorX -
+        event.offsetX >
+          step.dimensions.x -
             FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD &&
-        e.offsetX <
-          connectorX +
-            connectorDimensions.width +
+        event.offsetX <
+          step.dimensions.x +
+            step.dimensions.width +
             FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD &&
-        e.offsetY >
-          connectorY -
-            FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD &&
-        e.offsetY <
-          connectorY +
-            connectorDimensions.height +
-            FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD
+        step.dimensions.y + step.dimensions.height < event.offsetY &&
+        step.dimensions.y +
+          step.dimensions.height +
+          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD * 4 >
+          event.offsetY
       );
     });
 
-    if (nearestConnector) {
-      this.isDraggingOverDropAreaOrPath = true;
-      this.createDropPlaceholder(nearestConnector.connector);
+    if (isBelowStep) {
+      // Caso esteja ná area de drop de um step, mas esteja em delay ou já tenha placeholder renderizados, retorna
+      if (
+        this.isOnPlaceholderCreationDelay ||
+        this.flowchartService.hasPlaceholderSteps()
+      )
+        return;
+
+      this.createDropPlaceholder(isBelowStep);
+      this.isOnPlaceholderCreationDelay = true;
+
+      setTimeout(() => {
+        this.isOnPlaceholderCreationDelay = false;
+      }, FlowchartConstants.FLOWCHART_MIN_PLACEHOLDER_CREATION_DELAY);
     } else {
-      this.isDraggingOverDropAreaOrPath = false;
-      if (this.currentPlaceholder) {
-        this.currentPlaceholderParent.toggleTreeOpacity();
+      // Caso não esteja na área de drop de nenhum step, e tenha placeholders sendo exibidos, exclui estes placeholder
+      if (this.flowchartService.hasPlaceholderSteps()) {
         this.removeDropPlaceholder();
       }
     }
@@ -184,34 +157,62 @@ export class DragService {
    * @param connector
    * @returns
    */
-  public createDropPlaceholder(connector: FlowchartStepConnector) {
-    if (this.currentPlaceholder) return;
+  public createDropPlaceholder(parent: {
+    id: string;
+    dimensions: FlowchartStepCoordinates;
+  }) {
+    const stepName = this.getDragData('STEP_NAME');
+    const parentStep = this.flowchartService.getStepById(parent.id);
 
-    this.currentPlaceholderParent = this.flowchartService.getStepById(
-      connector.parentId
+    parentStep.children.forEach((child) =>
+      child.storeDragCoordinatesBeforeBeingAffectedByPlaceholder()
     );
 
-    this.currentPlaceholderParent?.toggleTreeOpacity();
-    const stepName = this.getDragData('STEP_NAME');
-
-    this.currentPlaceholder = this.currentPlaceholderParent?.addChild(
-      {
+    const placeholderStep = {
+      pendingComponent: {
         type: stepName,
       },
-      false
-    );
+      asSibling: false,
+      asPlaceholder: true,
+    };
 
-    // Adiciona classe de placeholder para manipulação de comportamento de eventos de drag com pointer-events
-    this.currentPlaceholder?.elementRef.nativeElement.classList.add(
-      'placeholder'
-    );
+    // Caso o pai não seja um stepResult ou initialStep, adiciona um stepResult antes do bloco placeholder
+    if (
+      parentStep.type != FlowStepsEnum.STEP_RESULT &&
+      parentStep.type != FlowStepsEnum.INITIAL_STEP
+    ) {
+      parentStep.addChild<FlowchartStepResultDataType>({
+        pendingComponent: {
+          type: FlowStepsEnum.STEP_RESULT,
+          data: {
+            resultType: parentStep.stepResultType as FlowchartStepResultsEnum,
+          },
+          children: [{ type: placeholderStep.pendingComponent.type }],
+        },
+        asSibling: false,
+        asPlaceholder: true,
+      });
+    } else {
+      parentStep.addChild(placeholderStep);
+    }
   }
 
   /**
    * Remove placeholder
    */
   private removeDropPlaceholder() {
-    this.currentPlaceholder.removeSelf();
-    this.currentPlaceholder = null;
+    this.flowchartService
+      .getAllPlaceholderSteps()
+      .forEach((step) => step.removeSelf());
+  }
+
+  /**
+   * Retorna tipo de stepResult que deve ser criado acima do placeholder com base no pai do placeholder
+   * @param parentPlaceholder Pai do placeholder
+   */
+  private getParentPlaceholderStepResultData(
+    parentPlaceholder: FlowchartStepComponent
+  ): FlowchartStep {
+    return;
   }
 }

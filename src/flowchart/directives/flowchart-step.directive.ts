@@ -26,13 +26,13 @@ export class FlowchartStepDirective {
 
     if (
       this.pendingStep.canDropAnywhere &&
-      !this.dragService.isDraggingOverDropAreaOrPath &&
-      this.isCursorInsideFlowchartContainer(event.x, event.y)
+      this.isCursorInsideFlowchartContainer(event.x, event.y) &&
+      !this.flowchartService.hasPlaceholderSteps()
     ) {
       this.createStepWithFreePosition(event);
     }
-
-    this.dragService.onFlowchartDragEnd(event);
+    this.dragService.onFlowchartDrop(event);
+    this.flowchartService.reCenterFlow();
   }
 
   @HostListener('dragstart', ['$event']) onDragStart(e: DragEvent) {
@@ -42,6 +42,7 @@ export class FlowchartStepDirective {
       'canDropAnywhere',
       this.pendingStep.canDropAnywhere
     );
+
     this.dragService.onFlowchartDragStart(e);
   }
 
