@@ -8,10 +8,10 @@ import {
 import { FlowchartService } from './services/flowchart.service';
 import { FlowchartStep } from './types/flowchart-step.type';
 import { NgStyle } from '@angular/common';
-import { ConnectorsService } from './services/connectors.service';
-import { DragService } from './services/drag.service';
+import { ConnectorsService } from './services/flowchart-connectors.service';
+import { DragService } from './services/flowchart-drag.service';
 import { FlowchartStepsService } from './services/flowchart-steps.service';
-import { FlowchartStepsEnum } from './helpers/flowchart-steps.enum';
+import { FlowchartStepsEnum } from './enums/flowchart-steps.enum';
 
 @Component({
   standalone: true,
@@ -85,6 +85,11 @@ const mock: FlowchartStep = {
   children: [
     {
       type: FlowchartStepsEnum.STEP_SCRIPT,
+      children: [
+        {
+          type: FlowchartStepsEnum.STEP_RESULT,
+        },
+      ],
     },
   ],
 };

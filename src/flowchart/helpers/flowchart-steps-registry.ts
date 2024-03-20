@@ -1,16 +1,19 @@
 import { Type } from '@angular/core';
-import { FlowchartStepsEnum } from './flowchart-steps.enum';
-import { FlowchartStepInitialComponent } from '../../steps/flowchart-step-initial/flowchart-step-initial.component';
-import { FlowchartStepConditionalComponent } from '../../steps/flowchart-step-conditional/flowchart-step-conditional.component';
-import { FlowchartStepResultComponent } from '../../steps/flowchart-step-result/flowchart-step-result.component';
-import { FlowchartStepFinalizationComponent } from '../../steps/flowchart-step-finalization/flowchart-step-finalization.component';
-import { FlowchartStepScriptComponent } from '../../steps/flowchart-step-script/flowchart-step-script.component';
-import { FlowchartStepRequestComponent } from '../../steps/flowchart-step-request/flowchart-step-request.component';
-import { FlowchartStepFlowRequestComponent } from '../../steps/flowchart-step-flow-request/flowchart-step-flow-request';
-import { FlowchartStepCollectionComponent } from '../../steps/flowchart-step-collection/flowchart-step-collection.component';
-import { FlowchartStepLoopStartComponent } from '../../steps/flowchart-step-loop-start/flowchart-step-loop-start.component';
-import { FlowchartStepLoopEndComponent } from '../../steps/flowchart-step-loop-end/flowchart-step-loop-end.component';
-import { FlowchartStepNotificationComponent } from '../../steps/flowchart-step-notification/flowchart-step-notification.component';
+import {
+  FlowchartStepCollectionComponent,
+  FlowchartStepConditionalComponent,
+  FlowchartStepFinalizationComponent,
+  FlowchartStepFlowRequestComponent,
+  FlowchartStepInitialComponent,
+  FlowchartStepLoopEndComponent,
+  FlowchartStepLoopStartComponent,
+  FlowchartStepNotificationComponent,
+  FlowchartStepRequestComponent,
+  FlowchartStepScriptComponent,
+} from '../components/steps';
+import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
+import { FlowchartStepResultComponent } from '../components/helper-steps/flowchart-step-result/flowchart-step-result.component';
+import { FlowchartStepDropareaComponent } from '../components/helper-steps/step-droparea/flowchart-step-droparea.component';
 
 export const stepsObj: Array<{
   type: FlowchartStepsEnum;
@@ -59,5 +62,10 @@ export const stepsObj: Array<{
   {
     type: FlowchartStepsEnum.STEP_RESULT,
     component: FlowchartStepResultComponent,
+  },
+
+  {
+    type: FlowchartStepsEnum.STEP_DROPAREA,
+    component: FlowchartStepDropareaComponent,
   },
 ];

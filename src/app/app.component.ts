@@ -4,7 +4,7 @@ import { RouterOutlet } from '@angular/router';
 import { FlowchartComponent } from '../flowchart/flowchart.component';
 import { FlowchartStepDirective } from '../flowchart/directives/flowchart-step.directive';
 import { CdkDrag, CdkDropList } from '@angular/cdk/drag-drop';
-import { FlowchartStepsEnum } from '../flowchart/helpers/flowchart-steps.enum';
+import { FlowchartStepsEnum } from '../flowchart/enums/flowchart-steps.enum';
 @Component({
   selector: 'app-root',
   standalone: true,

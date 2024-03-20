@@ -1,9 +1,10 @@
 import { Directive, HostBinding, HostListener, Input } from '@angular/core';
 import { FlowchartStep } from '../types/flowchart-step.type';
-import { DragService } from '../services/drag.service';
+import { DragService } from '../services/flowchart-drag.service';
 import { FlowchartStepsService } from '../services/flowchart-steps.service';
-import { CoordinatesStorageService } from '../services/coordinates-storage.service';
+import { CoordinatesStorageService } from '../services/flowchart-coordinates-storage.service';
 import { FlowchartService } from '../services/flowchart.service';
+import { FlowchartConstants } from '../helpers/flowchart-constants';
 
 @Directive({
   selector: '[flowchartStep]',
@@ -31,6 +32,7 @@ export class FlowchartStepDirective {
     ) {
       this.createStepWithFreePosition(event);
     }
+
     this.dragService.onFlowchartDrop(event);
     this.flowchartService.reCenterFlow();
   }

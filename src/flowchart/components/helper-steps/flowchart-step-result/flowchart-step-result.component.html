@@ -1,0 +1,9 @@
+{{ id }}
+
+<ng-container [ngSwitch]="data?.resultType">
+  <ng-container *ngSwitchCase="'ERROR'">Erro</ng-container>
+  <ng-container *ngSwitchCase="'SUCCESS'">Sucesso</ng-container>
+  <ng-container *ngSwitchCase="'FALSE'">Falso</ng-container>
+  <ng-container *ngSwitchCase="'TRUE'">Verdadeiro</ng-container>
+  <ng-container *ngSwitchDefault>Sucesso</ng-container>
+</ng-container>

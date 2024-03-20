@@ -1,6 +1,7 @@
 export const FlowchartConstants = {
   FLOWCHART_STEP_CLASS: 'flowchart-step',
   FLOWCHART_CONNECTOR_CLASS: 'flowchart-connector',
+  FLOWCHART_ANIMATE_CONNECTORS_CLASS: 'animate-connectors',
   FLOWCHART_SCROLL_WIDTH_DIV_CLASS: 'flowchart-scroll-x-div',
   FLOWCHART_SCROLL_HEIGHT_DIV_CLASS: 'flowchart-scroll-y-div',
   FLOWCHART_STEPS_GAP: 50,

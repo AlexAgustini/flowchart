@@ -11,11 +11,11 @@ import {
   FlowchartStepCoordinates,
 } from '../types/flowchart-step.type';
 import { FlowchartService } from './flowchart.service';
-import { ConnectorsService } from './connectors.service';
-import { CoordinatesStorageService } from './coordinates-storage.service';
+import { ConnectorsService } from './flowchart-connectors.service';
+import { CoordinatesStorageService } from './flowchart-coordinates-storage.service';
 import { stepsObj } from '../helpers/flowchart-steps-registry';
-import { FlowchartStepsDataType } from '../helpers/flowchart-steps-data-type';
-import { FlowchartStepsEnum } from '../helpers/flowchart-steps.enum';
+import { FlowchartStepsDataType } from '../types/flowchart-steps-data-type';
+import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
 
 @Injectable({
   providedIn: 'root',
@@ -85,6 +85,8 @@ export class FlowchartStepsService {
       });
     });
 
+    compRef.instance.afterStepInit?.();
+
     return compRef.instance;
   }
 
@@ -114,6 +116,9 @@ export class FlowchartStepsService {
     compRef.instance.compRef = compRef;
     compRef.instance.parent = parentStep;
     compRef.instance.type = pendingStep.type;
+    compRef.instance.isPlaceholder = asPlaceholder;
+    compRef.instance.afterStepRender = this.afterStepRender;
+    compRef.instance.afterStepDestroy = this.afterStepDestroy;
 
     this.setStepParentChildrenRelation({
       newStep: compRef.instance,
@@ -121,12 +126,6 @@ export class FlowchartStepsService {
       asSibling,
     });
 
-    compRef.instance.afterStepRender = this.afterStepRender;
-    compRef.instance.afterStepDestroy = this.afterStepDestroy;
-
-    if (asPlaceholder) {
-      compRef.instance.isPlaceholder = true;
-    }
     compRef.changeDetectorRef.detectChanges();
   }
 
@@ -147,14 +146,17 @@ export class FlowchartStepsService {
   }) {
     if (!parentStep) return;
     if (!asSibling) {
-      parentStep.children.forEach((child) => (child.parent = newStep));
+      parentStep.children.forEach((child) => {
+        // Change parent
+        child.parent = newStep;
+        // Push ex-parent children to new parent children
+        newStep.children.push(child);
+        // Removes old connectors between parent and children
+        this.removeConnector(parentStep.id, child.id);
+      });
 
-      newStep.children = parentStep.children;
+      // Empty parent children
       parentStep.children = [];
-
-      newStep.children.forEach((child) =>
-        this.removeConnector(parentStep.id, child.id)
-      );
     }
 
     if (parentStep) {
@@ -168,7 +170,6 @@ export class FlowchartStepsService {
    */
   private afterStepRender = (step: FlowchartStepComponent) => {
     this.setStepInitialCoordinates(step);
-    this.flowchartService.reCenterFlow();
   };
 
   /**
@@ -177,24 +178,23 @@ export class FlowchartStepsService {
    */
   private afterStepDestroy = (
     destroyedStep: FlowchartStepComponent,
-    destroyedStepCoordinates: FlowchartStepCoordinates,
-    recursive?: boolean
+    destroyedStepCoordinates: FlowchartStepCoordinates
   ) => {
-    if (recursive) {
-      if (destroyedStep.parent) destroyedStep.parent.children = [];
-    } else {
-      destroyedStep.children?.forEach((child) => {
-        child.parent = destroyedStep.parent;
-      });
+    // Seta novo pai dos filhos do step destruído
+    destroyedStep.children?.forEach((child) => {
+      child.parent = destroyedStep.parent;
+    });
 
-      destroyedStep.parent.children.splice(
-        destroyedStep.parent.children.findIndex(
-          (child) => child.id == destroyedStep.id
-        ),
-        1
-      );
-      destroyedStep.parent.children.push(...destroyedStep.children);
-    }
+    // Remove step destruído do array de children do pai
+    destroyedStep.parent.children.splice(
+      destroyedStep.parent.children.findIndex(
+        (child) => child.id == destroyedStep.id
+      ),
+      1
+    );
+
+    // Passa filhos do step destruído para o pai
+    destroyedStep.parent.children.push(...destroyedStep.children);
 
     this.removeConnector(destroyedStep.parent?.id, destroyedStep.id);
 
@@ -209,6 +209,13 @@ export class FlowchartStepsService {
         ),
       });
     });
+
+    const stepResults = destroyedStep.children.filter(
+      (child) =>
+        child.type == FlowchartStepsEnum.STEP_RESULT && !child.isPlaceholder
+    );
+
+    stepResults.forEach((step) => step.removeSelf());
 
     this.flowchartService.removeStep(destroyedStep);
   };
@@ -249,7 +256,7 @@ export class FlowchartStepsService {
    * Calcula coordenadas de um novo step
    */
   private setStepCoordinates(newStep: FlowchartStepComponent): void {
-    if (!newStep.parent) return;
+    if (!newStep?.parent) return;
 
     const parentCoordinates = newStep.parent.getCoordinates();
     const parentXCenter = parentCoordinates.x + parentCoordinates.width / 2;
@@ -264,7 +271,6 @@ export class FlowchartStepsService {
       );
     } else {
       const newStepDimensions = newStep.getCoordinates();
-
       newStep.setCoordinates({
         x: parentXCenter - newStepDimensions.width / 2,
         y:
@@ -370,7 +376,8 @@ export class FlowchartStepsService {
           x: currentXPosition,
           y:
             parentCoordinates.y +
-            Number(FlowchartConstants.FLOWCHART_STEPS_GAP) * 2,
+            parentCoordinates.height +
+            Number(FlowchartConstants.FLOWCHART_STEPS_GAP),
         });
       });
     }

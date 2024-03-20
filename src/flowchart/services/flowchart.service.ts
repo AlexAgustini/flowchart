@@ -1,4 +1,4 @@
-import { Flow, FlowchartStepConnector } from './../types/flowchart-step.type';
+import { Flow, FlowchartStepConnector } from '../types/flowchart-step.type';
 import { ElementRef, Injectable, ViewContainerRef } from '@angular/core';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import { Point } from '@angular/cdk/drag-drop';
@@ -100,13 +100,17 @@ export class FlowchartService {
 
     const rootStep = this.getRootStep();
     const rootStepCoordinates = rootStep.getCoordinates();
+
     const flowchartXCenter =
       this.flowchartElement.nativeElement.scrollWidth / 2;
     const rootStepXDiff =
       flowchartXCenter -
       (rootStepCoordinates.x + rootStepCoordinates.width / 2);
 
-    rootStep.moveSelfAndAllChildren({ x: rootStepXDiff, y: 0 });
+    rootStep.moveSelfAndAllChildren({
+      x: rootStepXDiff > 10 ? rootStepXDiff : 0,
+      y: 0,
+    });
   }
   /**
    * Manipula width e height do {@link flowchartElement} de acordo com as dimensões dos teps
