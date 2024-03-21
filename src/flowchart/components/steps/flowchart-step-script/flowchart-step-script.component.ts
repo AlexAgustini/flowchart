@@ -6,11 +6,4 @@ import { FlowchartStepResultsEnum } from '../../../enums/flowchart-step-results-
   selector: 'flowchart-step-script-component',
   templateUrl: './flowchart-step-script.component.html',
 })
-export class FlowchartStepScriptComponent extends FlowchartStepComponent {
-  override ngAfterViewInit(): void {
-    super.ngAfterViewInit();
-  }
-  public override async afterStepInit(): Promise<void> {
-    this.addResultLabel(FlowchartStepResultsEnum.SUCCESS);
-  }
-}
+export class FlowchartStepScriptComponent extends FlowchartStepComponent {}

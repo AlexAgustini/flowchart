@@ -5,8 +5,4 @@ import { FlowchartStepComponent } from '../../flowchart-step-component/flowchart
   selector: 'flowchart-step-initial-component',
   templateUrl: './flowchart-step-initial.component.html',
 })
-export class FlowchartStepInitialComponent extends FlowchartStepComponent {
-  override ngOnInit(): void {
-    super.ngOnInit();
-  }
-}
+export class FlowchartStepInitialComponent extends FlowchartStepComponent {}

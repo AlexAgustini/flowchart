@@ -1,13 +1,6 @@
 import { FlowchartConstants } from '../../helpers/flowchart-constants';
 import { FlowchartComponent } from './../../flowchart.component';
-import {
-  CDK_DRAG_PLACEHOLDER,
-  CdkDrag,
-  CdkDragEnd,
-  CdkDragMove,
-  CdkDragStart,
-  Point,
-} from '@angular/cdk/drag-drop';
+import { CDK_DRAG_PLACEHOLDER, CdkDrag, CdkDragEnd, CdkDragMove, CdkDragStart, Point } from '@angular/cdk/drag-drop';
 import {
   AfterViewInit,
   ChangeDetectorRef,
@@ -21,14 +14,11 @@ import {
   Renderer2,
   inject,
 } from '@angular/core';
-import {
-  FlowchartStep,
-  FlowchartStepCoordinates,
-} from '../../types/flowchart-step.type';
+import { FlowchartStep, FlowchartStepCoordinates } from '../../types/flowchart-step.type';
 import { ConnectorsService } from '../../services/flowchart-connectors.service';
 import { FlowchartStepsService } from '../../services/flowchart-steps.service';
 import { CoordinatesStorageService } from '../../services/flowchart-coordinates-storage.service';
-import { FlowchartService } from '../../services/flowchart.service';
+import { FlowchartRendererService } from '../../services/flowchart-renderer.service';
 import { FlowchartStepsDataType } from '../../types/flowchart-steps-data-type';
 import { FlowchartStepsEnum } from '../../enums/flowchart-steps.enum';
 import { FlowchartStepResultsEnum } from '../../enums/flowchart-step-results-enum';
@@ -40,7 +30,7 @@ import { animate, style, transition, trigger } from '@angular/animations';
   selector: 'flowchart-step',
   template: '',
   hostDirectives: [CdkDrag],
-  host: { '[@enterAnimation]': '' },
+  // host: { '[@enterAnimation]': '' },
   animations: [
     trigger('enterAnimation', [
       transition(':enter', [
@@ -53,16 +43,9 @@ import { animate, style, transition, trigger } from '@angular/animations';
     ]),
   ],
 })
-export abstract class FlowchartStepComponent<
-  T extends FlowchartStepsDataType = FlowchartStepsDataType
-> implements OnInit, AfterViewInit, OnDestroy
+export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = FlowchartStepsDataType>
+  implements AfterViewInit, OnDestroy
 {
-  /**
-   * Hook customizado, chamado após o step ser inicializado, com todas suas propriedades setadas coerentemente
-   * Utilizar este no lugar do ngOnInit
-   */
-  public afterStepInit?(): void;
-
   /**
    * Pai do step
    */
@@ -97,17 +80,12 @@ export abstract class FlowchartStepComponent<
    * Callbacks a serem chamados apoós remoção do step
    */
   @Input()
-  public afterStepDestroy: (
-    step: FlowchartStepComponent,
-    thisCoordinates: FlowchartStepCoordinates,
-    recursive?: boolean
-  ) => void;
+  public afterStepDestroy: (step: FlowchartStepComponent, thisCoordinates: FlowchartStepCoordinates) => void;
 
   /**
    * Binda estilo de transição ao host para ser controlado programaticamente
    */
-  @HostBinding('style.transition') private transition: '.2s ease' | null =
-    '.2s ease';
+  @HostBinding('style.transition') private transition: '.2s ease' | null = '.2s ease';
 
   /**
    * Steps filhos
@@ -199,7 +177,7 @@ export abstract class FlowchartStepComponent<
    * @readonly
    * Serviço do flowchart
    */
-  protected readonly flowchartService = inject(FlowchartService);
+  protected readonly flowchartRendererService = inject(FlowchartRendererService);
   /**
    * @private
    * @readonly
@@ -213,16 +191,12 @@ export abstract class FlowchartStepComponent<
    */
   protected readonly dragDir = inject(CdkDrag);
 
-  ngOnInit() {
-    if (this.type == FlowchartStepsEnum.STEP_INITIAL)
-      this.dragDir.disabled = true;
-  }
-
   ngAfterViewInit() {
     this.setCdkDragBoundary();
     this.setCdkDragEventsCallbacks();
     this.setHostElementDefaults();
     this.afterStepRender?.(this);
+    this.observeHostResize();
   }
 
   ngOnDestroy() {
@@ -237,7 +211,7 @@ export abstract class FlowchartStepComponent<
    * os filhos desse step serão realocados como children do novo step inserido
    * @type
    */
-  public addChild<T extends FlowchartStepsDataType>({
+  public async addChild<T extends FlowchartStepsDataType>({
     pendingComponent,
     asSibling,
     asPlaceholder,
@@ -246,7 +220,7 @@ export abstract class FlowchartStepComponent<
     asSibling?: boolean;
     asPlaceholder?: boolean;
     log?: boolean;
-  }): FlowchartStepComponent<T> {
+  }): Promise<FlowchartStepComponent<T>> {
     return this.flowchartStepsService.createStep({
       pendingStep: pendingComponent,
       parentStep: this,
@@ -275,11 +249,11 @@ export abstract class FlowchartStepComponent<
   public removeSelf(recursive?: boolean): void {
     const thisCoordinates = this.getCoordinates();
     this.compRef.destroy();
-    this.afterStepDestroy(this, thisCoordinates, recursive);
 
     if (recursive) {
       this.children.forEach((child) => child.removeSelf(true));
     }
+    this.afterStepDestroy(this, thisCoordinates);
   }
 
   /**
@@ -291,10 +265,7 @@ export abstract class FlowchartStepComponent<
 
     const thisCoordinates = this.getCoordinates();
     const childOldCoordinates = onlyChild.getCoordinates();
-    const childNewX =
-      thisCoordinates.x +
-      thisCoordinates.width / 2 -
-      childOldCoordinates.width / 2;
+    const childNewX = thisCoordinates.x + thisCoordinates.width / 2 - childOldCoordinates.width / 2;
 
     const xDiff = Math.abs(childOldCoordinates.x - childNewX);
     this.children[0].setCoordinates({
@@ -316,7 +287,6 @@ export abstract class FlowchartStepComponent<
    */
   public setCoordinates({ x, y }: Point): void {
     this.dragDir.setFreeDragPosition({ x, y });
-    this.reCenterChildren();
     this.connectorsService.drawConnectors(this.parent);
   }
 
@@ -325,8 +295,7 @@ export abstract class FlowchartStepComponent<
    * @returns
    */
   public getCoordinates(): FlowchartStepCoordinates {
-    const { height, width } =
-      this.elementRef.nativeElement.getBoundingClientRect();
+    const { height, width } = this.elementRef.nativeElement.getBoundingClientRect();
 
     return {
       ...this.dragDir.getFreeDragPosition(),
@@ -341,9 +310,7 @@ export abstract class FlowchartStepComponent<
    */
   public storeDragCoordinatesBeforeBeingAffectedByPlaceholder(): void {
     this._dragPositionBeforeBeingAffectedByPlaceholder = this.getCoordinates();
-    this.children.forEach((child) =>
-      child.storeDragCoordinatesBeforeBeingAffectedByPlaceholder()
-    );
+    this.children.forEach((child) => child.storeDragCoordinatesBeforeBeingAffectedByPlaceholder());
   }
 
   /**
@@ -353,9 +320,7 @@ export abstract class FlowchartStepComponent<
   public restoreDragCoordinatesToBeforeBeingAffectedByPlaceholder(): void {
     if (!this._dragPositionBeforeBeingAffectedByPlaceholder) return;
     this.setCoordinates(this._dragPositionBeforeBeingAffectedByPlaceholder);
-    this.children.forEach((child) =>
-      child.restoreDragCoordinatesToBeforeBeingAffectedByPlaceholder()
-    );
+    this.children.forEach((child) => child.restoreDragCoordinatesToBeforeBeingAffectedByPlaceholder());
   }
 
   /**
@@ -390,7 +355,7 @@ export abstract class FlowchartStepComponent<
   /**
    * Retorna se este step foi arrastado e está em posição diferente da setada automaticamente pelo pai
    */
-  public hasBeenDragged() {
+  public hasBeenDragged(): boolean {
     return CoordinatesStorageService.getStepCoordinates(this.id) != null;
   }
 
@@ -400,8 +365,7 @@ export abstract class FlowchartStepComponent<
   public hasErrorPath(): boolean {
     return this.children.some(
       (child) =>
-        child.type == FlowchartStepsEnum.STEP_RESULT &&
-        child.data?.resultType == FlowchartStepResultsEnum.ERROR
+        child.type == FlowchartStepsEnum.STEP_RESULT && child.data?.resultType == FlowchartStepResultsEnum.ERROR
     );
   }
 
@@ -409,6 +373,8 @@ export abstract class FlowchartStepComponent<
    * Seta limite de drag dentro do elemento do {@link FlowchartComponent}
    */
   private setCdkDragBoundary(): void {
+    if (this.type == FlowchartStepsEnum.STEP_INITIAL) this.dragDir.disabled = true;
+
     this.dragDir.boundaryElement = this.flowchartStepsService.flowchartElement;
   }
 
@@ -416,15 +382,9 @@ export abstract class FlowchartStepComponent<
    * Seta callbacks para eventos de drag {@link dragDir}
    */
   private setCdkDragEventsCallbacks(): void {
-    this.dragDir.moved
-      .pipe(takeUntil(this.destroySubject$))
-      .subscribe((e) => this.onDragMoved(e));
-    this.dragDir.started
-      .pipe(takeUntil(this.destroySubject$))
-      .subscribe((e) => this.onDragStart(e));
-    this.dragDir.ended
-      .pipe(takeUntil(this.destroySubject$))
-      .subscribe((e) => this.onDragEnd(e));
+    this.dragDir.moved.pipe(takeUntil(this.destroySubject$)).subscribe((e) => this.onDragMoved(e));
+    this.dragDir.started.pipe(takeUntil(this.destroySubject$)).subscribe((e) => this.onDragStart(e));
+    this.dragDir.ended.pipe(takeUntil(this.destroySubject$)).subscribe((e) => this.onDragEnd(e));
   }
 
   /**
@@ -452,16 +412,11 @@ export abstract class FlowchartStepComponent<
    * Callback when dragging component
    * @param dragEvent Event
    */
-  public onDragMoved(dragEvent: CdkDragMove): void {
-    CoordinatesStorageService.setStepCoordinates(
-      this.id,
-      this.getCoordinates()
-    );
+  private onDragMoved(dragEvent: CdkDragMove): void {
+    CoordinatesStorageService.setStepCoordinates(this.id, this.getCoordinates());
 
     this.children.forEach((child) => {
-      const { x, y } = child.dragPositionBeforeDragStart
-        ? child.dragPositionBeforeDragStart
-        : child.getCoordinates();
+      const { x, y } = child.dragPositionBeforeDragStart ? child.dragPositionBeforeDragStart : child.getCoordinates();
 
       child.setCoordinates({
         x: x + dragEvent.distance.x,
@@ -481,11 +436,18 @@ export abstract class FlowchartStepComponent<
    * Seta atributos default do hostElement
    */
   private setHostElementDefaults(): void {
-    this.renderer2.addClass(
-      this.elementRef.nativeElement,
-      FlowchartConstants.FLOWCHART_STEP_CLASS
-    );
+    this.renderer2.addClass(this.elementRef.nativeElement, FlowchartConstants.FLOWCHART_STEP_CLASS);
 
     this.renderer2.setAttribute(this.elementRef.nativeElement, 'id', this.id);
+  }
+
+  /**
+   * Observa mudança de tamanho do hostElement para reajustar coordenadas automaticamente
+   */
+  private observeHostResize(): void {
+    new ResizeObserver((entries) => {
+      if (entries[0].contentRect.width == 0) return;
+      this.flowchartStepsService.setStepInitialCoordinates(this, false);
+    }).observe(this.elementRef.nativeElement);
   }
 }

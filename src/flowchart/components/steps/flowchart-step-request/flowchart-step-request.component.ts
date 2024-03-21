@@ -8,12 +8,6 @@ import { FlowchartStepsEnum } from '../../../enums/flowchart-steps.enum';
   templateUrl: './flowchart-step-request.component.html',
 })
 export class FlowchartStepRequestComponent extends FlowchartStepComponent {
-  override ngAfterViewInit(): void {
-    super.ngAfterViewInit();
-
-    this.addResultLabel(FlowchartStepResultsEnum.SUCCESS);
-  }
-
   public addErrorPath() {
     this.addChild({
       pendingComponent: {

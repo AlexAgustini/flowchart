@@ -1,15 +1,7 @@
-import {
-  Injectable,
-  Injector,
-  Renderer2,
-  RendererFactory2,
-} from '@angular/core';
+import { Injectable, Injector, Renderer2, RendererFactory2 } from '@angular/core';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
-import {
-  FlowchartStepConnector,
-  FlowchartStepCoordinates,
-} from '../types/flowchart-step.type';
-import { FlowchartService } from './flowchart.service';
+import { FlowchartStepConnector, FlowchartStepCoordinates } from '../types/flowchart-step.type';
+import { FlowchartRendererService } from './flowchart-renderer.service';
 import { FlowchartConstants } from '../helpers/flowchart-constants';
 
 @Injectable({
@@ -28,7 +20,7 @@ export class ConnectorsService {
   constructor(
     rendererFactory: RendererFactory2,
     injector: Injector,
-    private flowchartService: FlowchartService
+    private flowchartRendererService: FlowchartRendererService
   ) {
     this.renderer2 = rendererFactory.createRenderer(null, null);
   }
@@ -65,20 +57,14 @@ export class ConnectorsService {
    * @param parentId Id do pai
    * @param childId Id do filho
    */
-  private createConnector(
-    parentId: string,
-    childId: string
-  ): FlowchartStepConnector {
-    const path = this.renderer2.createElement(
-      'path',
-      'http://www.w3.org/2000/svg'
-    );
+  private createConnector(parentId: string, childId: string): FlowchartStepConnector {
+    const path = this.renderer2.createElement('path', 'http://www.w3.org/2000/svg');
     this.renderer2.appendChild(this.svgCanvas, path);
     this.renderer2.setAttribute(path, 'id', `${parentId}-${childId}`);
     this.renderer2.addClass(path, FlowchartConstants.FLOWCHART_CONNECTOR_CLASS);
 
     const connector = { path, parentId, childId };
-    this.flowchartService.addConnector(connector);
+    this.flowchartRendererService.addConnector(connector);
 
     return connector;
   }
@@ -111,13 +97,19 @@ export class ConnectorsService {
     const controlPointY2 = childElYTop - hypotenuse;
 
     // Construct the SVG path
-    const initialPath = `M${parentElXCenter},${parentElYBottom} C${parentElXCenter},${parentElYBottom} ${parentElXCenter},${parentElYBottom} ${parentElXCenter},${parentElYBottom}`;
-    const pathD = `M${parentElXCenter},${parentElYBottom} C${controlPointX1},${controlPointY1} ${controlPointX2},${controlPointY2} ${childElXCenter},${childElYTop}`;
 
-    path.setAttribute('d', initialPath);
-    setTimeout(() => {
-      path.setAttribute('d', pathD);
-    }, 50);
+    const finalPath = `M${parentElXCenter},${parentElYBottom} C${controlPointX1},${controlPointY1} ${controlPointX2},${controlPointY2} ${childElXCenter},${childElYTop}`;
+
+    if (this.flowchartRendererService.isDragging) {
+      const initialPath = `M${parentElXCenter},${parentElYBottom} C${parentElXCenter},${parentElYBottom} ${parentElXCenter},${parentElYBottom} ${parentElXCenter},${parentElYBottom}`;
+
+      path.setAttribute('d', initialPath);
+      setTimeout(() => {
+        path.setAttribute('d', finalPath);
+      }, 50);
+    } else {
+      path.setAttribute('d', finalPath);
+    }
   }
 
   /**
@@ -129,7 +121,7 @@ export class ConnectorsService {
     const connector = this.getParentChildConnector(childId, parentId);
     if (!connector) return;
     try {
-      this.flowchartService.removeConnector(connector);
+      this.flowchartRendererService.removeConnector(connector);
       this.renderer2.removeChild(this.svgCanvas, connector.path);
     } catch (e) {
       console.log(e);
@@ -141,13 +133,9 @@ export class ConnectorsService {
    * @param parentId Id do step pai
    * @param childId Id do step filho
    */
-  private getParentChildConnector(
-    parentId: string,
-    childId: string
-  ): FlowchartStepConnector {
-    return this.flowchartService.connectors.find(
-      (connector) =>
-        connector.parentId == parentId && connector.childId == childId
+  private getParentChildConnector(parentId: string, childId: string): FlowchartStepConnector {
+    return this.flowchartRendererService.connectors.find(
+      (connector) => connector.parentId == parentId && connector.childId == childId
     );
   }
 }

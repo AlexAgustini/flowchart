@@ -1,17 +1,10 @@
-import {
-  Component,
-  ElementRef,
-  HostListener,
-  ViewChild,
-  ViewContainerRef,
-} from '@angular/core';
-import { FlowchartService } from './services/flowchart.service';
+import { Component, ElementRef, HostListener, ViewChild, ViewContainerRef } from '@angular/core';
+import { FlowchartRendererService } from './services/flowchart-renderer.service';
 import { FlowchartStep } from './types/flowchart-step.type';
 import { NgStyle } from '@angular/common';
-import { ConnectorsService } from './services/flowchart-connectors.service';
 import { DragService } from './services/flowchart-drag.service';
-import { FlowchartStepsService } from './services/flowchart-steps.service';
 import { FlowchartStepsEnum } from './enums/flowchart-steps.enum';
+import { FlowchartService } from './services/flowchart.service';
 
 @Component({
   standalone: true,
@@ -31,29 +24,15 @@ export class FlowchartComponent {
 
   constructor(
     private flowchartService: FlowchartService,
-    private flowchartStepsService: FlowchartStepsService,
-    private connectorsService: ConnectorsService,
+    private r: FlowchartRendererService,
     private dragService: DragService,
     private elementRef: ElementRef
   ) {}
 
   ngAfterViewInit() {
-    this.connectorsService.registerSvg(this.svgRef.nativeElement);
-    this.flowchartService.registerFlowchart(
-      this.viewContainerRef,
-      this.elementRef,
-      this.svgRef
-    );
-    this.flowchartStepsService.registerFlowchart(
-      this.viewContainerRef,
-      this.elementRef
-    );
+    this.flowchartService.initFlowchart(this.viewContainerRef, this.elementRef, this.svgRef);
 
-    this.flowchartStepsService.createStep({ pendingStep: mock });
-  }
-
-  @HostListener('window:resize', ['$event']) onResize(event: Event) {
-    this.flowchartService.reCenterFlow();
+    this.flowchartService.initSteps(mock);
   }
 
   @HostListener('dragover', ['$event'])
@@ -63,7 +42,7 @@ export class FlowchartComponent {
   }
 
   @HostListener('dblclick', ['$event']) dblClick(e: MouseEvent) {
-    const { x, y } = this.flowchartService.getPointXYRelativeToFlowchart({
+    const { x, y } = this.r.getPointXYRelativeToFlowchart({
       x: e.clientX,
       y: e.clientY,
     });
@@ -73,7 +52,7 @@ export class FlowchartComponent {
   }
 
   logFlow() {
-    console.log(this.flowchartService.flow);
+    console.log(this.r.flow);
   }
 }
 
@@ -84,10 +63,24 @@ const mock: FlowchartStep = {
   },
   children: [
     {
-      type: FlowchartStepsEnum.STEP_SCRIPT,
+      type: FlowchartStepsEnum.STEP_REQUEST,
+      id: '1',
       children: [
         {
-          type: FlowchartStepsEnum.STEP_RESULT,
+          type: FlowchartStepsEnum.STEP_SCRIPT,
+        },
+        {
+          type: FlowchartStepsEnum.STEP_REQUEST,
+          children: [
+            {
+              type: FlowchartStepsEnum.STEP_CONDITIONAL,
+              children: [
+                {
+                  type: FlowchartStepsEnum.STEP_REQUEST,
+                },
+              ],
+            },
+          ],
         },
       ],
     },

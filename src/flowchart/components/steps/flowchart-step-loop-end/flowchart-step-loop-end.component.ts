@@ -5,8 +5,4 @@ import { FlowchartStepComponent } from '../../flowchart-step-component/flowchart
   selector: 'flowchart-step-loop-end-component',
   templateUrl: './flowchart-step-loop-end.component.html',
 })
-export class FlowchartStepLoopEndComponent extends FlowchartStepComponent {
-  override ngAfterViewInit(): void {
-    super.ngAfterViewInit();
-  }
-}
+export class FlowchartStepLoopEndComponent extends FlowchartStepComponent {}

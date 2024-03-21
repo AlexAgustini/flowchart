@@ -7,4 +7,4 @@ export * from './flowchart-step-loop-start/flowchart-step-loop-start.component';
 export * from './flowchart-step-notification/flowchart-step-notification.component';
 export * from './flowchart-step-request/flowchart-step-request.component';
 export * from './flowchart-step-script/flowchart-step-script.component';
-export * from './flowchart-step-flow-request/flowchart-step-flow-request';
+export * from './flowchart-step-flow-request/flowchart-step-flow-request-component';
