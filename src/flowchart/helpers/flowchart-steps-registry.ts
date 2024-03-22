@@ -63,7 +63,6 @@ export const stepsObj: Array<{
     type: FlowchartStepsEnum.STEP_RESULT,
     component: FlowchartStepResultComponent,
   },
-
   {
     type: FlowchartStepsEnum.STEP_DROPAREA,
     component: FlowchartStepDropareaComponent,

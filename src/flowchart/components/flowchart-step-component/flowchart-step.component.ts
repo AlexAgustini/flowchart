@@ -1,6 +1,6 @@
 import { FlowchartConstants } from '../../helpers/flowchart-constants';
 import { FlowchartComponent } from './../../flowchart.component';
-import { CDK_DRAG_PLACEHOLDER, CdkDrag, CdkDragEnd, CdkDragMove, CdkDragStart, Point } from '@angular/cdk/drag-drop';
+import { CdkDrag, CdkDragEnd, CdkDragMove, CdkDragStart, Point } from '@angular/cdk/drag-drop';
 import {
   AfterViewInit,
   ChangeDetectorRef,
@@ -10,12 +10,11 @@ import {
   HostBinding,
   Input,
   OnDestroy,
-  OnInit,
   Renderer2,
   inject,
 } from '@angular/core';
 import { FlowchartStep, FlowchartStepCoordinates } from '../../types/flowchart-step.type';
-import { ConnectorsService } from '../../services/flowchart-connectors.service';
+import { FlowchartConnectorsService } from '../../services/flowchart-connectors.service';
 import { FlowchartStepsService } from '../../services/flowchart-steps.service';
 import { CoordinatesStorageService } from '../../services/flowchart-coordinates-storage.service';
 import { FlowchartRendererService } from '../../services/flowchart-renderer.service';
@@ -30,15 +29,27 @@ import { animate, style, transition, trigger } from '@angular/animations';
   selector: 'flowchart-step',
   template: '',
   hostDirectives: [CdkDrag],
-  // host: { '[@enterAnimation]': '' },
   animations: [
-    trigger('enterAnimation', [
+    trigger('animation', [
       transition(':enter', [
         style({
-          scale: 0.9,
           opacity: 0,
         }),
-        animate('.3s ease', style({ scale: 1, opacity: 1 })),
+        animate('.3s ease', style({ opacity: 1 })),
+      ]),
+      transition(':leave', [
+        style({
+          opacity: 1,
+          transformOrigin: 'center center',
+          transform: '{{ translate3dValue }} scale(1)',
+        }),
+        animate(
+          '.3s ease',
+          style({
+            opacity: 0,
+            transform: '{{ translate3dValue }} scale(0.1)',
+          })
+        ),
       ]),
     ]),
   ],
@@ -86,6 +97,19 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * Binda estilo de transição ao host para ser controlado programaticamente
    */
   @HostBinding('style.transition') private transition: '.2s ease' | null = '.2s ease';
+
+  @HostBinding('@animation')
+  public get animation() {
+    const translate3dValue = `translate3d(${this.elementRef.nativeElement.style.transform
+      .replace('translate3d(', '')
+      .replace(')', '')})`;
+    return {
+      value: '',
+      params: {
+        translate3dValue,
+      },
+    };
+  }
 
   /**
    * Steps filhos
@@ -183,7 +207,7 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * @readonly
    * Serviço de conectores
    */
-  private readonly connectorsService = inject(ConnectorsService);
+  private readonly connectorsService = inject(FlowchartConnectorsService);
   /**
    * @private
    * @readonly
@@ -247,8 +271,8 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * @param recursive Se deve remover os steps subsequentes
    */
   public removeSelf(recursive?: boolean): void {
-    const thisCoordinates = this.getCoordinates();
     this.compRef.destroy();
+    const thisCoordinates = this.getCoordinates();
 
     if (recursive) {
       this.children.forEach((child) => child.removeSelf(true));

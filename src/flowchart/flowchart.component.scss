@@ -52,8 +52,12 @@
       bottom: 0;
     }
 
-    .flowchart-bottom-gap {
-      position: absolute;
+    .flowchart-scroll-x-div {
+      min-width: calc(100% + 40px);
+    }
+
+    .flowchart-scroll-y-div {
+      min-height: calc(100% + 40px);
     }
 
     #canvas-svg {

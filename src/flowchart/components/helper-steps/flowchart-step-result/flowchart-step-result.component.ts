@@ -16,4 +16,11 @@ export class FlowchartStepResultComponent extends FlowchartStepComponent {
   ngOnInit() {
     this.dragDir.disabled = true;
   }
+
+  afterChildrenInit() {
+    if (this.children.length) return;
+    this.addChild({
+      pendingComponent: { type: FlowchartStepsEnum.STEP_DROPAREA },
+    });
+  }
 }

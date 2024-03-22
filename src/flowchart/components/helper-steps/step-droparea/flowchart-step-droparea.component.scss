@@ -1,10 +1,10 @@
 :host {
-  background-color: #e6e6e6 !important;
+  border-radius: 100% !important;
   padding: 0 !important;
-  width: 30px;
-  height: 30px;
+}
+.wrapper {
   display: grid;
   place-items: center;
-  border-radius: 100% !important;
-  pointer-events: all !important;
+  width: 35px;
+  height: 35px;
 }

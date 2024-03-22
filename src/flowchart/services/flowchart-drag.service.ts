@@ -144,6 +144,9 @@ export class DragService {
   public createDropPlaceholder(parent: { id: string; dimensions: FlowchartStepCoordinates }) {
     const stepName = this.getDragData('STEP_NAME');
     const parentStep = this.flowchartRendererService.getStepById(parent.id);
+    const step = this.flowchartRendererService.getStepById(parentStep.children[0].id);
+
+    console.log(step);
 
     parentStep.children.forEach((child) => child.storeDragCoordinatesBeforeBeingAffectedByPlaceholder());
 

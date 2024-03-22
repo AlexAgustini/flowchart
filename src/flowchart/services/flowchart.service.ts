@@ -2,7 +2,7 @@ import { ElementRef, Injectable, ViewContainerRef } from '@angular/core';
 import { FlowchartStepsService } from './flowchart-steps.service';
 import { FlowchartRendererService } from './flowchart-renderer.service';
 import { FlowchartStep } from '../types/flowchart-step.type';
-import { ConnectorsService } from './flowchart-connectors.service';
+import { FlowchartConnectorsService } from './flowchart-connectors.service';
 
 @Injectable({
   providedIn: 'root',
@@ -19,12 +19,12 @@ export class FlowchartService {
   /**
    * Serviço de conectores
    */
-  private readonly connectorsService: ConnectorsService;
+  private readonly connectorsService: FlowchartConnectorsService;
 
   constructor(
     flowchartStepsService: FlowchartStepsService,
     flowchartRendererService: FlowchartRendererService,
-    connectorsService: ConnectorsService
+    connectorsService: FlowchartConnectorsService
   ) {
     this.flowchartStepsService = flowchartStepsService;
     this.flowchartRendererService = flowchartRendererService;

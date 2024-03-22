@@ -92,7 +92,7 @@ export class FlowchartRendererService {
   /**
    * Recentraliza os steps do flow e aumenta dimensões do {@link flowchartElement} caso necessário
    */
-  public reCenterFlow(): void {
+  public async reCenterFlow(): Promise<void> {
     if (!this.steps.length || this.isDragging) return;
 
     this.treatFlowchartDimensions();
@@ -103,6 +103,8 @@ export class FlowchartRendererService {
 
     const flowchartXCenter = this.flowchartElement.nativeElement.scrollWidth / 2;
     const rootStepXDiff = flowchartXCenter - (rootStepCoordinates.x + rootStepCoordinates.width / 2);
+
+    console.log(rootStepXDiff);
 
     rootStep.moveSelfAndAllChildren({
       x: rootStepXDiff > 10 ? rootStepXDiff : 0,

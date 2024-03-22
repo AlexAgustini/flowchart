@@ -3,12 +3,13 @@ import { ComponentRef, ElementRef, Injectable, ViewContainerRef } from '@angular
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import { FlowchartStep, FlowchartStepCoordinates } from '../types/flowchart-step.type';
 import { FlowchartRendererService } from './flowchart-renderer.service';
-import { ConnectorsService } from './flowchart-connectors.service';
+import { FlowchartConnectorsService } from './flowchart-connectors.service';
 import { CoordinatesStorageService } from './flowchart-coordinates-storage.service';
 import { stepsObj } from '../helpers/flowchart-steps-registry';
 import { FlowchartStepsDataType } from '../types/flowchart-steps-data-type';
 import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
 import { StepsPathsRegistry } from '../helpers/steps-paths-registry';
+import { FlowchartStepResultComponent } from '../components/helper-steps/flowchart-step-result/flowchart-step-result.component';
 
 @Injectable({
   providedIn: 'root',
@@ -23,7 +24,20 @@ export class FlowchartStepsService {
    */
   public flowchartElement!: ElementRef<HTMLElement>;
 
-  constructor(private flowchartService: FlowchartRendererService, private connectorsService: ConnectorsService) {}
+  /**
+   * Serviço renderer do Flowchart
+   */
+  private readonly flowchartRendererService: FlowchartRendererService;
+
+  /**
+   * Serviço de conectores do Flowchart
+   */
+  private readonly connectorsService: FlowchartConnectorsService;
+
+  constructor(flowchartRendererService: FlowchartRendererService, connectorsService: FlowchartConnectorsService) {
+    this.flowchartRendererService = flowchartRendererService;
+    this.connectorsService = connectorsService;
+  }
 
   public registerFlowchart(flowchartViewContainer: ViewContainerRef, flowchartElement: ElementRef<HTMLElement>) {
     this.flowchartViewContainer = flowchartViewContainer;
@@ -49,6 +63,9 @@ export class FlowchartStepsService {
     asPlaceholder?: boolean;
   }): Promise<FlowchartStepComponent<T>> {
     if (!pendingStep) return;
+
+    // Intervalo base para criação de steps
+    await new Promise((resolve) => setTimeout(() => resolve(true), 50));
     const compRef: ComponentRef<FlowchartStepComponent<T>> = this.flowchartViewContainer.createComponent(
       stepsObj.find((step) => step.type == pendingStep.type).component
     );
@@ -64,11 +81,16 @@ export class FlowchartStepsService {
     // Get step pre-configured pathsResults
     const createdStepPathsResults = StepsPathsRegistry.find((stepPath) => stepPath.type == compRef.instance.type);
 
-    // If there are no pathsResults configured, just continue creating the steps without creating a stepResult
+    // If there are no pathsResults configured, just continue creating the children steps without creating a stepResult
     if (!createdStepPathsResults) {
       pendingStep.children?.forEach((child: FlowchartStep) => {
         this.createStep({ pendingStep: child, parentStep: compRef.instance, asPlaceholder });
       });
+
+      setTimeout(() => {
+        (compRef.instance as any).afterChildrenInit?.();
+      }, 100);
+
       return compRef.instance;
     }
 
@@ -112,7 +134,7 @@ export class FlowchartStepsService {
     asSibling: boolean;
     asPlaceholder: boolean;
   }): Promise<void> {
-    this.flowchartService.addStep(compRef.instance);
+    this.flowchartRendererService.addStep(compRef.instance);
     compRef.instance.id = pendingStep.id ?? this.generateRandomId();
     compRef.instance.data = pendingStep.data;
     compRef.instance.compRef = compRef;
@@ -182,8 +204,6 @@ export class FlowchartStepsService {
     destroyedStep: FlowchartStepComponent,
     destroyedStepCoordinates: FlowchartStepCoordinates
   ): void => {
-    console.log();
-
     // Seta novo pai dos filhos do step destruído
     destroyedStep.children?.forEach((child) => {
       child.parent = destroyedStep.parent;
@@ -215,7 +235,7 @@ export class FlowchartStepsService {
 
     stepResults.forEach((step) => step.removeSelf());
 
-    this.flowchartService.removeStep(destroyedStep);
+    this.flowchartRendererService.removeStep(destroyedStep);
   };
 
   /**

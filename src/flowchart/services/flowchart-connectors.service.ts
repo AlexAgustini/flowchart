@@ -7,7 +7,7 @@ import { FlowchartConstants } from '../helpers/flowchart-constants';
 @Injectable({
   providedIn: 'root',
 })
-export class ConnectorsService {
+export class FlowchartConnectorsService {
   /**
    * Elemento SVG que contém todos os paths
    */
