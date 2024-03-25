@@ -4,10 +4,11 @@ import { Injectable } from '@angular/core';
 import { FlowchartStepCoordinates } from '../types/flowchart-step.type';
 import { FlowchartRendererService } from './flowchart-renderer.service';
 import { FlowchartConstants } from '../helpers/flowchart-constants';
+import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 @Injectable({
   providedIn: 'root',
 })
-export class DragService {
+export class FlowchartDragService {
   constructor(private flowchartRendererService: FlowchartRendererService) {}
 
   /**
@@ -27,11 +28,16 @@ export class DragService {
   }>;
 
   /**
+   * Coordenadas de um droparea sobre o qual pode ocorrer um evento de drag
+   */
+  public dropareaCoordinates: FlowchartStepCoordinates;
+
+  /**
    * Seta key no {@link dragData}
    * @param key Chave
    * @param value Valor
    */
-  public setDragData(key: string, value: any): void {
+  public setDragData(key: 'STEP_TYPE' | 'data' | 'canDropAnywhere' | 'canDropInBetweenSteps', value: any): void {
     this.dragData.set(key, value);
   }
 
@@ -46,7 +52,7 @@ export class DragService {
    *
    * @param key Busca chave no {@link dragData}
    */
-  public getDragData(key: string): any {
+  public getDragData(key: 'STEP_TYPE' | 'data' | 'canDropAnywhere' | 'canDropInBetweenSteps'): any {
     return this.dragData.get(key);
   }
 
@@ -64,7 +70,6 @@ export class DragService {
    */
   public onFlowchartDragStart(event: DragEvent): void {
     this.flowchartRendererService.isDragging = true;
-
     this.stepsOnDragStart = Array.from(
       this.flowchartRendererService.steps.map((step) => {
         return {
@@ -89,8 +94,8 @@ export class DragService {
    * @param e Evento de drag
    */
   public onFlowchartDrop(e: DragEvent): void {
-    this.stepsOnDragStart = null;
     this.flowchartRendererService.isDragging = false;
+    this.stepsOnDragStart = null;
 
     if (this.flowchartRendererService.hasPlaceholderSteps()) {
       this.flowchartRendererService.getAllPlaceholderSteps().forEach((step) => (step.isPlaceholder = false));
@@ -105,34 +110,37 @@ export class DragService {
     const isBelowStep = this.stepsOnDragStart?.find((step) => {
       if (step.type != FlowchartStepsEnum.STEP_RESULT && step.type != FlowchartStepsEnum.STEP_INITIAL) return;
       return (
-        event.offsetX > step.dimensions.x - FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD &&
+        event.offsetX > step.dimensions.x - FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_WIDTH_THRESHOLD &&
         event.offsetX <
           step.dimensions.x +
             step.dimensions.width +
-            FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD &&
+            FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_WIDTH_THRESHOLD &&
         step.dimensions.y + step.dimensions.height < event.offsetY &&
         step.dimensions.y +
           step.dimensions.height +
-          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_THRESHOLD * 4 >
+          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_HEIGHT_THRESHOLD >
           event.offsetY
       );
     });
 
     if (isBelowStep) {
-      // Caso esteja ná area de drop de um step, mas esteja em delay ou já tenha placeholder renderizados, retorna
-      if (this.isOnPlaceholderCreationDelay || this.flowchartRendererService.hasPlaceholderSteps()) return;
+      // Caso esteja ná area de drop de um step, mas já tenha placeholder renderizados, retorna
+      if (this.flowchartRendererService.hasPlaceholderSteps()) return;
 
-      this.createDropPlaceholder(isBelowStep);
-      this.isOnPlaceholderCreationDelay = true;
+      const parentStep = this.flowchartRendererService.getStepById(isBelowStep.id);
 
-      setTimeout(() => {
-        this.isOnPlaceholderCreationDelay = false;
-      }, FlowchartConstants.FLOWCHART_MIN_PLACEHOLDER_CREATION_DELAY);
+      this.createDropPlaceholder(parentStep);
     } else {
-      // Caso não esteja na área de drop de nenhum step, e tenha placeholders sendo exibidos, exclui estes placeholder
-      if (this.flowchartRendererService.hasPlaceholderSteps() && !this.isOnPlaceholderCreationDelay) {
-        this.removeDropPlaceholder();
-      }
+      // Se estiver ocorrendo drag encima de um droparea, retorna
+      if (this.isDraggingOverDroparea(event.clientX, event.clientY)) return;
+
+      // Se estiver em delay de criação de placeholders, retorna (para evitar bugs visuais)
+      if (this.isOnPlaceholderCreationDelay) return;
+
+      // Se não houverem placeholder steps, retorna
+      if (!this.flowchartRendererService.hasPlaceholderSteps()) return;
+
+      this.removeDropPlaceholders();
     }
   }
 
@@ -141,30 +149,63 @@ export class DragService {
    * @param connector
    * @returns
    */
-  public createDropPlaceholder(parent: { id: string; dimensions: FlowchartStepCoordinates }) {
-    const stepName = this.getDragData('STEP_NAME');
-    const parentStep = this.flowchartRendererService.getStepById(parent.id);
-    const step = this.flowchartRendererService.getStepById(parentStep.children[0].id);
+  public createDropPlaceholder(parentStep: FlowchartStepComponent) {
+    if (this.isOnPlaceholderCreationDelay) return;
+    this.isOnPlaceholderCreationDelay = true;
+    setTimeout(
+      () => (this.isOnPlaceholderCreationDelay = false),
+      FlowchartConstants.FLOWCHART_MIN_PLACEHOLDER_CREATION_DELAY
+    );
 
-    console.log(step);
+    if (
+      !this.getDragData('canDropInBetweenSteps') &&
+      parentStep.children[0].type !== FlowchartStepsEnum.STEP_DROPAREA
+    ) {
+      return;
+    }
+
+    const stepType = this.getDragData('STEP_TYPE');
 
     parentStep.children.forEach((child) => child.storeDragCoordinatesBeforeBeingAffectedByPlaceholder());
-
-    const placeholderStep = {
+    parentStep.addChild({
       pendingComponent: {
-        type: stepName,
+        type: stepType,
       },
       asSibling: false,
       asPlaceholder: true,
-    };
-
-    parentStep.addChild(placeholderStep);
+    });
   }
 
   /**
-   * Remove placeholder
+   * Remove placeholders criados
    */
-  private removeDropPlaceholder() {
+  private removeDropPlaceholders(): void {
     this.flowchartRendererService.getAllPlaceholderSteps().forEach((step) => step.removeSelf());
+  }
+
+  /**
+   * Retorna se está ocorrendo um evento de drag encima das coordenadas de um droparea
+   * @param clientX Coordenadas do mouse eixo X
+   * @param clientY Coordenadas do mouse eixo Y
+   */
+  private isDraggingOverDroparea(clientX: number, clientY: number): boolean {
+    if (!this.dropareaCoordinates) return false;
+
+    const { x: mouseX, y: mouseY } = this.flowchartRendererService.getPointXYRelativeToFlowchart({
+      x: clientX,
+      y: clientY,
+    });
+
+    const dropareaLeftMargin = this.dropareaCoordinates.x;
+    const dropareaRightMargin = this.dropareaCoordinates.x + this.dropareaCoordinates.width;
+    const dropareaTopMargin = this.dropareaCoordinates.y;
+    const dropareaBottomMargin = this.dropareaCoordinates.y + this.dropareaCoordinates.height + 16; // padding;
+
+    return (
+      mouseX > dropareaLeftMargin &&
+      mouseX < dropareaRightMargin &&
+      mouseY > dropareaTopMargin &&
+      mouseY < dropareaBottomMargin
+    );
   }
 }

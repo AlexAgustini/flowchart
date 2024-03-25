@@ -8,15 +8,14 @@ export type Flow = {
   connectors?: Array<FlowchartStepConnector>;
 };
 
-export type FlowchartStep<
-  T extends FlowchartStepsDataType = FlowchartStepsDataType
-> = {
+export type FlowchartStep<T extends FlowchartStepsDataType = FlowchartStepsDataType> = {
   type: FlowchartStepsEnum;
   id?: string;
-  canDropAnywhere?: boolean;
   data?: T;
   children?: Array<FlowchartStep>;
   parent?: FlowchartStep;
+  canDropAnywhere?: boolean;
+  canDropInBetweenSteps?: boolean;
 };
 
 export type FlowchartStepConnector = {

@@ -14,6 +14,8 @@ export class FlowchartStepConditionalComponent extends FlowchartStepComponent {
       setTimeout(() => {
         oldPath?.restoreDragCoordinatesToBeforeBeingAffectedByPlaceholder();
       }, 0);
+    } else {
+      this.parent.addDroparea();
     }
   }
 }

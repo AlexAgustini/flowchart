@@ -4,12 +4,11 @@ import { FlowchartStepComponent } from '../components/flowchart-step-component/f
 import { FlowchartStep, FlowchartStepCoordinates } from '../types/flowchart-step.type';
 import { FlowchartRendererService } from './flowchart-renderer.service';
 import { FlowchartConnectorsService } from './flowchart-connectors.service';
-import { CoordinatesStorageService } from './flowchart-coordinates-storage.service';
+import { FlowchartCoordinatesStorageService } from './flowchart-coordinates-storage.service';
 import { stepsObj } from '../helpers/flowchart-steps-registry';
 import { FlowchartStepsDataType } from '../types/flowchart-steps-data-type';
 import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
 import { StepsPathsRegistry } from '../helpers/steps-paths-registry';
-import { FlowchartStepResultComponent } from '../components/helper-steps/flowchart-step-result/flowchart-step-result.component';
 
 @Injectable({
   providedIn: 'root',
@@ -87,9 +86,7 @@ export class FlowchartStepsService {
         this.createStep({ pendingStep: child, parentStep: compRef.instance, asPlaceholder });
       });
 
-      setTimeout(() => {
-        (compRef.instance as any).afterChildrenInit?.();
-      }, 100);
+      compRef.instance.afterChildrenInit?.();
 
       return compRef.instance;
     }
@@ -112,6 +109,54 @@ export class FlowchartStepsService {
 
     return compRef.instance;
   }
+
+  /**
+   * Cria step
+   * @param pendingStep Step a ser criado
+   * @param parentStep Step pai do step a ser criado
+   * @param asSibling Se o step que será criado deve ser criado como irmão dos steps children atuais do parentStep - default false
+   * @param asPlaceholder Se deve ser criado em modo de placeholder - default false
+   */
+  public async createStepWithoutStepResults<T extends FlowchartStepsDataType = FlowchartStepsDataType>({
+    pendingStep,
+    parentStep,
+    asSibling = false,
+    asPlaceholder = false,
+  }: {
+    pendingStep: FlowchartStepComponent<T> | FlowchartStep<T>;
+    parentStep?: FlowchartStepComponent;
+    asSibling?: boolean;
+    asPlaceholder?: boolean;
+  }): Promise<FlowchartStepComponent<T>> {
+    if (!pendingStep) return;
+
+    // Intervalo base para criação de steps
+    await new Promise((resolve) => setTimeout(() => resolve(true), 50));
+    const compRef: ComponentRef<FlowchartStepComponent<T>> = this.flowchartViewContainer.createComponent(
+      stepsObj.find((step) => step.type == pendingStep.type).component
+    );
+
+    await this.setStepData({
+      pendingStep,
+      compRef,
+      parentStep,
+      asSibling,
+      asPlaceholder,
+    });
+
+    for (const [i, child] of pendingStep.children.entries()) {
+      this.createStepWithoutStepResults({
+        pendingStep: child,
+        parentStep: compRef.instance,
+        asSibling: i > 0,
+        asPlaceholder,
+      });
+    }
+
+    return compRef.instance;
+  }
+
+  stepclone: FlowchartStepComponent;
 
   /**
    * Seta inputs e configurações dos steps após criação
@@ -142,7 +187,9 @@ export class FlowchartStepsService {
     compRef.instance.type = pendingStep.type;
     compRef.instance.isPlaceholder = asPlaceholder;
     compRef.instance.afterStepRender = this.afterStepRender;
-    compRef.instance.afterStepDestroy = this.afterStepDestroy;
+    if (!compRef.instance.afterStepDestroy) {
+      compRef.instance.afterStepDestroy = this.afterStepDestroy;
+    }
 
     this.setStepParentChildrenRelation({
       newStep: compRef.instance,
@@ -194,6 +241,7 @@ export class FlowchartStepsService {
    */
   private afterStepRender = (step: FlowchartStepComponent): void => {
     this.setStepInitialCoordinates(step);
+    this.flowchartRendererService.reCenterFlow();
   };
 
   /**
@@ -202,24 +250,26 @@ export class FlowchartStepsService {
    */
   private afterStepDestroy = (
     destroyedStep: FlowchartStepComponent,
-    destroyedStepCoordinates: FlowchartStepCoordinates
+    destroyedStepCoordinates: FlowchartStepCoordinates,
+    recursive?: boolean
   ): void => {
+    const destroyedStepParent = destroyedStep.parent;
+
     // Seta novo pai dos filhos do step destruído
     destroyedStep.children?.forEach((child) => {
       child.parent = destroyedStep.parent;
     });
 
     // Remove step destruído do array de children do pai
-    destroyedStep.parent.children.splice(
-      destroyedStep.parent.children.findIndex((child) => child.id == destroyedStep.id),
+    destroyedStepParent.children.splice(
+      destroyedStepParent.children.findIndex((child) => child.id == destroyedStep.id),
       1
     );
 
     // Passa filhos do step destruído para o pai
-    destroyedStep.parent.children.push(...destroyedStep.children);
+    destroyedStepParent.children.push(...destroyedStep.children);
 
-    this.removeConnector(destroyedStep.parent?.id, destroyedStep.id);
-
+    // Move todos steps filhos para cima no eixo Y correspondente à altura do step destruído
     destroyedStep.children.forEach((child) => {
       this.removeConnector(destroyedStep.id, child.id);
 
@@ -229,19 +279,26 @@ export class FlowchartStepsService {
       });
     });
 
-    const stepResults = destroyedStep.children.filter(
-      (child) => child.type == FlowchartStepsEnum.STEP_RESULT && !child.isPlaceholder
-    );
+    // Remove stepResults(caso não seja remoção recursiva)
+    if (!recursive) {
+      const stepResults = destroyedStep.children.filter(
+        (child) => child.type == FlowchartStepsEnum.STEP_RESULT && !child.isPlaceholder
+      );
 
-    stepResults.forEach((step) => step.removeSelf());
+      stepResults.forEach((step) => step.removeSelf());
+    }
 
+    // Remove conector entre o step destruído e o pai
+    this.removeConnector(destroyedStepParent?.id, destroyedStep.id);
+
+    // Remove step do array de steps totais do fluxo
     this.flowchartRendererService.removeStep(destroyedStep);
   };
 
   /**
    * Limpa conectores antigos, caso não existam mais
    */
-  private removeConnector(parentId: string, childId: string): void {
+  public removeConnector(parentId: string, childId: string): void {
     this.connectorsService.removeConnector(parentId, childId);
   }
 
@@ -257,7 +314,7 @@ export class FlowchartStepsService {
       });
       return;
     }
-    const stepCoordinates = CoordinatesStorageService.getStepCoordinates(step.id);
+    const stepCoordinates = FlowchartCoordinatesStorageService.getStepCoordinates(step.id);
 
     if (stepCoordinates) {
       step.setCoordinates(stepCoordinates);

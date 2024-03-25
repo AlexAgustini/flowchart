@@ -2,7 +2,7 @@ import { Component, ElementRef, HostListener, ViewChild, ViewContainerRef } from
 import { FlowchartRendererService } from './services/flowchart-renderer.service';
 import { FlowchartStep } from './types/flowchart-step.type';
 import { NgStyle } from '@angular/common';
-import { DragService } from './services/flowchart-drag.service';
+import { FlowchartDragService } from './services/flowchart-drag.service';
 import { FlowchartStepsEnum } from './enums/flowchart-steps.enum';
 import { FlowchartService } from './services/flowchart.service';
 
@@ -25,7 +25,7 @@ export class FlowchartComponent {
   constructor(
     private flowchartService: FlowchartService,
     private r: FlowchartRendererService,
-    private dragService: DragService,
+    private dragService: FlowchartDragService,
     private elementRef: ElementRef
   ) {}
 
@@ -64,23 +64,12 @@ const mock: FlowchartStep = {
   children: [
     {
       type: FlowchartStepsEnum.STEP_REQUEST,
-      id: '1',
       children: [
         {
           type: FlowchartStepsEnum.STEP_SCRIPT,
         },
         {
-          type: FlowchartStepsEnum.STEP_REQUEST,
-          children: [
-            {
-              type: FlowchartStepsEnum.STEP_CONDITIONAL,
-              children: [
-                {
-                  type: FlowchartStepsEnum.STEP_REQUEST,
-                },
-              ],
-            },
-          ],
+          type: FlowchartStepsEnum.STEP_SCRIPT,
         },
       ],
     },

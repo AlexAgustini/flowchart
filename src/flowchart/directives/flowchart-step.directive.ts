@@ -1,8 +1,8 @@
 import { Directive, HostBinding, HostListener, Input } from '@angular/core';
 import { FlowchartStep } from '../types/flowchart-step.type';
-import { DragService } from '../services/flowchart-drag.service';
+import { FlowchartDragService } from '../services/flowchart-drag.service';
 import { FlowchartStepsService } from '../services/flowchart-steps.service';
-import { CoordinatesStorageService } from '../services/flowchart-coordinates-storage.service';
+import { FlowchartCoordinatesStorageService } from '../services/flowchart-coordinates-storage.service';
 import { FlowchartRendererService } from '../services/flowchart-renderer.service';
 import { FlowchartConstants } from '../helpers/flowchart-constants';
 
@@ -16,7 +16,7 @@ export class FlowchartStepDirective {
   constructor(
     private flowchartStepsService: FlowchartStepsService,
     private flowchartRendererService: FlowchartRendererService,
-    private dragService: DragService
+    private dragService: FlowchartDragService
   ) {}
 
   @HostBinding('attr.draggable') draggable = true;
@@ -41,9 +41,10 @@ export class FlowchartStepDirective {
   }
 
   @HostListener('dragstart', ['$event']) onDragStart(e: DragEvent) {
-    this.dragService.setDragData('STEP_NAME', this.pendingStep.type);
+    this.dragService.setDragData('STEP_TYPE', this.pendingStep.type);
     this.dragService.setDragData('data', this.pendingStep.data);
     this.dragService.setDragData('canDropAnywhere', this.pendingStep.canDropAnywhere);
+    this.dragService.setDragData('canDropInBetweenSteps', this.pendingStep.canDropInBetweenSteps ?? true);
     this.dragService.onFlowchartDragStart(e);
 
     this.flowchartRendererService.flowchartElement.nativeElement.classList.add(
@@ -78,7 +79,7 @@ export class FlowchartStepDirective {
 
     this.pendingStep.id = 's' + Date.now();
 
-    CoordinatesStorageService.setStepCoordinates(this.pendingStep.id, { x, y });
+    FlowchartCoordinatesStorageService.setStepCoordinates(this.pendingStep.id, { x, y });
     this.flowchartStepsService.createStep({
       pendingStep: this.pendingStep,
     });

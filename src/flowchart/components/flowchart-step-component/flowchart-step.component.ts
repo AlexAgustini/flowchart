@@ -3,11 +3,11 @@ import { FlowchartComponent } from './../../flowchart.component';
 import { CdkDrag, CdkDragEnd, CdkDragMove, CdkDragStart, Point } from '@angular/cdk/drag-drop';
 import {
   AfterViewInit,
-  ChangeDetectorRef,
   Component,
   ComponentRef,
   ElementRef,
   HostBinding,
+  HostListener,
   Input,
   OnDestroy,
   Renderer2,
@@ -16,13 +16,14 @@ import {
 import { FlowchartStep, FlowchartStepCoordinates } from '../../types/flowchart-step.type';
 import { FlowchartConnectorsService } from '../../services/flowchart-connectors.service';
 import { FlowchartStepsService } from '../../services/flowchart-steps.service';
-import { CoordinatesStorageService } from '../../services/flowchart-coordinates-storage.service';
+import { FlowchartCoordinatesStorageService } from '../../services/flowchart-coordinates-storage.service';
 import { FlowchartRendererService } from '../../services/flowchart-renderer.service';
 import { FlowchartStepsDataType } from '../../types/flowchart-steps-data-type';
 import { FlowchartStepsEnum } from '../../enums/flowchart-steps.enum';
 import { FlowchartStepResultsEnum } from '../../enums/flowchart-step-results-enum';
 import { Subject, takeUntil } from 'rxjs';
 import { animate, style, transition, trigger } from '@angular/animations';
+import { cloneDeep } from 'lodash';
 
 @Component({
   standalone: true,
@@ -47,7 +48,7 @@ import { animate, style, transition, trigger } from '@angular/animations';
           '.3s ease',
           style({
             opacity: 0,
-            transform: '{{ translate3dValue }} scale(0.1)',
+            transform: '{{ translate3dValue }} scale(.1)',
           })
         ),
       ]),
@@ -91,15 +92,22 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * Callbacks a serem chamados apoós remoção do step
    */
   @Input()
-  public afterStepDestroy: (step: FlowchartStepComponent, thisCoordinates: FlowchartStepCoordinates) => void;
+  public afterStepDestroy: (
+    step: FlowchartStepComponent,
+    thisCoordinates: FlowchartStepCoordinates,
+    recursive?: boolean
+  ) => void;
 
   /**
-   * Binda estilo de transição ao host para ser controlado programaticamente
+   * Bind de estilo de transição ao host para ser controlado programaticamente
    */
   @HostBinding('style.transition') private transition: '.2s ease' | null = '.2s ease';
 
+  /**
+   * Bind de animações de enter/leave do step
+   */
   @HostBinding('@animation')
-  public get animation() {
+  public get animation(): Record<string, any> {
     const translate3dValue = `translate3d(${this.elementRef.nativeElement.style.transform
       .replace('translate3d(', '')
       .replace(')', '')})`;
@@ -110,6 +118,28 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
       },
     };
   }
+
+  @HostListener('dblclick') private onDoubleClick() {
+    const change = (step: FlowchartStepComponent) => {
+      step.id = this.flowchartStepsService.generateRandomId();
+      for (let child of step.children) {
+        setTimeout(() => {
+          change(child);
+        }, 50);
+      }
+    };
+
+    const clone = cloneDeep(this);
+    change(clone);
+
+    this.flowchartStepsService.stepclone = clone;
+  }
+  /**
+   * Hook chamado após inicialização de children desse step
+   */
+  public afterChildrenInit: () => void;
+
+  public canDropInBetweenSteps: boolean = true;
 
   /**
    * Steps filhos
@@ -177,7 +207,6 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    */
   private readonly destroySubject$ = new Subject();
 
-  cdr = inject(ChangeDetectorRef);
   /**
    * @private
    * @readonly
@@ -253,14 +282,22 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
     });
   }
 
-  protected addResultLabel(resultType: FlowchartStepResultsEnum) {
-    if (this.children[0]?.type == FlowchartStepsEnum.STEP_RESULT) return;
+  public addStepResult(resultType: FlowchartStepResultsEnum, asSibling?: boolean): void {
     this.addChild({
       pendingComponent: {
         type: FlowchartStepsEnum.STEP_RESULT,
         data: {
           resultType,
         },
+      },
+      asSibling,
+    });
+  }
+
+  public addDroparea(): void {
+    this.addChild({
+      pendingComponent: {
+        type: FlowchartStepsEnum.STEP_DROPAREA,
       },
       asSibling: false,
     });
@@ -271,13 +308,13 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * @param recursive Se deve remover os steps subsequentes
    */
   public removeSelf(recursive?: boolean): void {
-    this.compRef.destroy();
     const thisCoordinates = this.getCoordinates();
+    this.compRef.destroy();
+    this.afterStepDestroy(this, thisCoordinates, recursive);
 
     if (recursive) {
       this.children.forEach((child) => child.removeSelf(true));
     }
-    this.afterStepDestroy(this, thisCoordinates);
   }
 
   /**
@@ -380,7 +417,7 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * Retorna se este step foi arrastado e está em posição diferente da setada automaticamente pelo pai
    */
   public hasBeenDragged(): boolean {
-    return CoordinatesStorageService.getStepCoordinates(this.id) != null;
+    return FlowchartCoordinatesStorageService.getStepCoordinates(this.id) != null;
   }
 
   /**
@@ -437,7 +474,7 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * @param dragEvent Event
    */
   private onDragMoved(dragEvent: CdkDragMove): void {
-    CoordinatesStorageService.setStepCoordinates(this.id, this.getCoordinates());
+    FlowchartCoordinatesStorageService.setStepCoordinates(this.id, this.getCoordinates());
 
     this.children.forEach((child) => {
       const { x, y } = child.dragPositionBeforeDragStart ? child.dragPositionBeforeDragStart : child.getCoordinates();

@@ -95,6 +95,7 @@ export class FlowchartRendererService {
   public async reCenterFlow(): Promise<void> {
     if (!this.steps.length || this.isDragging) return;
 
+    this.checkOverlappingSteps();
     this.treatFlowchartDimensions();
     this.resizeSvgCanvas();
 
@@ -103,8 +104,6 @@ export class FlowchartRendererService {
 
     const flowchartXCenter = this.flowchartElement.nativeElement.scrollWidth / 2;
     const rootStepXDiff = flowchartXCenter - (rootStepCoordinates.x + rootStepCoordinates.width / 2);
-
-    console.log(rootStepXDiff);
 
     rootStep.moveSelfAndAllChildren({
       x: rootStepXDiff > 10 ? rootStepXDiff : 0,
@@ -200,6 +199,11 @@ export class FlowchartRendererService {
     }px`;
   }
 
+  private checkOverlappingSteps() {
+    // this.steps.forEach(step=> {
+    // })
+  }
+
   /**
    * Getter de conectores
    */
@@ -265,7 +269,6 @@ export class FlowchartRendererService {
   private observeEvents() {
     fromEvent(window, 'resize').subscribe({
       next: () => {
-        console.log('aqui');
         this.reCenterFlow();
       },
     });
