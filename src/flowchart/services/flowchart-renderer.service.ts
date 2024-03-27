@@ -1,9 +1,10 @@
-import { Flow, FlowchartStepConnector } from '../types/flowchart-step.type';
-import { ElementRef, Injectable, ViewContainerRef } from '@angular/core';
+import { Flow, FlowchartStepConnector, FlowchartStepCoordinates } from '../types/flowchart-step.type';
+import { ElementRef, Injectable, ViewContainerRef, ViewChild } from '@angular/core';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import { Point } from '@angular/cdk/drag-drop';
 import { FlowchartConstants } from '../helpers/flowchart-constants';
 import { fromEvent } from 'rxjs';
+import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
 
 @Injectable({
   providedIn: 'root',
@@ -95,10 +96,6 @@ export class FlowchartRendererService {
   public async reCenterFlow(): Promise<void> {
     if (!this.steps.length || this.isDragging) return;
 
-    this.checkOverlappingSteps();
-    this.treatFlowchartDimensions();
-    this.resizeSvgCanvas();
-
     const rootStep = this.getRootStep();
     const rootStepCoordinates = rootStep.getCoordinates();
 
@@ -109,7 +106,81 @@ export class FlowchartRendererService {
       x: rootStepXDiff > 10 ? rootStepXDiff : 0,
       y: 0,
     });
+    this.render();
+    this.treatFlowchartDimensions();
+    this.resizeSvgCanvas();
   }
+
+  /**
+   * Getter de conectores
+   */
+  public get connectors() {
+    return this.flow.connectors;
+  }
+
+  /**
+   * Getter de steps
+   */
+  public get steps() {
+    return this.flow.steps;
+  }
+
+  /**
+   * Retorna bloco raíz do fluxo
+   */
+  public getRootStep(): FlowchartStepComponent {
+    return this.steps[0];
+  }
+
+  /**
+   * Retorna step do fluxo por id
+   * @param id Id buscado
+   */
+  public getStepById(id: string): FlowchartStepComponent {
+    return this.steps.find((step) => step.id == id);
+  }
+
+  /**
+   * Retorna steps placeholder atuais
+   *
+   */
+  public getAllPlaceholderSteps(): Array<FlowchartStepComponent> {
+    return this.steps.filter((step) => step.isPlaceholder);
+  }
+
+  /**
+   * Retorna steps placeholder atuais
+   */
+  public hasPlaceholderSteps(): boolean {
+    return this.steps.some((step) => step.isPlaceholder);
+  }
+
+  /**
+   * Calcula coordenadas coordenadas de um ponto XY relativos à tela e os retorna relativos ao elemento do flowchart
+   * @param point Ponto a ser calculado
+   */
+  public getPointXYRelativeToFlowchart(point: Point): Point {
+    return {
+      x: point.x - this.flowchartBoundingRect.x,
+      y: point.y - this.flowchartBoundingRect.y,
+    };
+  }
+
+  /**
+   * Retorna dimensões do flowchart
+   */
+  public get flowchartBoundingRect() {
+    return this.flowchartElement.nativeElement.getBoundingClientRect();
+  }
+
+  private observeEvents() {
+    fromEvent(window, 'resize').subscribe({
+      next: () => {
+        this.reCenterFlow();
+      },
+    });
+  }
+
   /**
    * Manipula width e height do {@link flowchartElement} de acordo com as dimensões dos teps
    */
@@ -199,78 +270,67 @@ export class FlowchartRendererService {
     }px`;
   }
 
-  private checkOverlappingSteps() {
-    // this.steps.forEach(step=> {
-    // })
+  private getStepTreeWidth(step: FlowchartStepComponent) {
+    const stepWidth = step.elementRef.nativeElement.getBoundingClientRect().width;
+
+    if (!step.children.length) {
+      return stepWidth;
+    }
+
+    let childrenWidth = step.children.reduce(
+      (childTreeWidth, child) => childTreeWidth + this.getStepTreeWidth(child),
+      0
+    );
+
+    return Math.max(stepWidth, childrenWidth);
   }
 
-  /**
-   * Getter de conectores
-   */
-  public get connectors() {
-    return this.flow.connectors;
-  }
+  private render() {
+    const renderTree = (step: FlowchartStepComponent) => {
+      if (!step.children.length) {
+        return;
+      }
 
-  /**
-   * Getter de steps
-   */
-  public get steps() {
-    return this.flow.steps;
-  }
+      const stepCoords = step.getCoordinates();
+      const stepYBottom = stepCoords.y + stepCoords.height;
+      const stepXCenter = stepCoords.x + stepCoords.width / 2;
 
-  /**
-   * Retorna bloco raíz do fluxo
-   */
-  public getRootStep(): FlowchartStepComponent {
-    return this.steps[0];
-  }
+      const childYTop = stepYBottom + FlowchartConstants.FLOWCHART_STEPS_GAP;
 
-  /**
-   * Retorna step do fluxo por id
-   * @param id Id buscado
-   */
-  public getStepById(id: string): FlowchartStepComponent {
-    return this.steps.find((step) => step.id == id);
-  }
+      let totalTreeWidth = 0;
 
-  /**
-   * Retorna steps placeholder atuais
-   *
-   */
-  public getAllPlaceholderSteps(): Array<FlowchartStepComponent> {
-    return this.steps.filter((step) => step.isPlaceholder);
-  }
+      step.children.forEach((child) => {
+        totalTreeWidth += this.getStepTreeWidth(child);
+      });
 
-  /**
-   * Retorna steps placeholder atuais
-   */
-  public hasPlaceholderSteps(): boolean {
-    return this.steps.some((step) => step.isPlaceholder);
-  }
+      let leftXTree = stepXCenter - totalTreeWidth / 2;
 
-  /**
-   * Calcula coordenadas coordenadas de um ponto XY relativos à tela e os retorna relativos ao elemento do flowchart
-   * @param point Ponto a ser calculado
-   */
-  public getPointXYRelativeToFlowchart(point: Point): Point {
-    return {
-      x: point.x - this.flowchartBoundingRect.x,
-      y: point.y - this.flowchartBoundingRect.y,
+      const hasMoreThanOneChild = step.children.length > 1;
+
+      step.children.forEach((child, i) => {
+        const childTreeWidth = this.getStepTreeWidth(child);
+
+        if (step.type == FlowchartStepsEnum.STEP_REQUEST) {
+          console.log(childTreeWidth);
+        }
+
+        let childX = leftXTree + childTreeWidth / 2 - child.elementRef.nativeElement.offsetWidth / 2;
+
+        if (i > 0) {
+          childX = Math.max(childX, this.getStepTreeWidth(step.children[i - 1]));
+        }
+
+        child.setCoordinates({
+          x: hasMoreThanOneChild && i == 0 ? childX - FlowchartConstants.FLOWCHART_STEPS_GAP : childX,
+          y: childYTop,
+        });
+
+        leftXTree += childTreeWidth + FlowchartConstants.FLOWCHART_STEPS_GAP;
+
+        renderTree(child);
+      });
     };
-  }
 
-  /**
-   * Retorna dimensões do flowchart
-   */
-  public get flowchartBoundingRect() {
-    return this.flowchartElement.nativeElement.getBoundingClientRect();
-  }
-
-  private observeEvents() {
-    fromEvent(window, 'resize').subscribe({
-      next: () => {
-        this.reCenterFlow();
-      },
-    });
+    renderTree(this.getRootStep());
   }
 }

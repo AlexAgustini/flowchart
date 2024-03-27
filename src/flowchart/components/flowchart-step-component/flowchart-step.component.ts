@@ -36,12 +36,16 @@ import { cloneDeep } from 'lodash';
         style({
           opacity: 0,
         }),
-        animate('.3s ease', style({ opacity: 1 })),
+        animate(
+          '.3s ease',
+          style({
+            opacity: 1,
+          })
+        ),
       ]),
       transition(':leave', [
         style({
           opacity: 1,
-          transformOrigin: 'center center',
           transform: '{{ translate3dValue }} scale(1)',
         }),
         animate(
@@ -101,7 +105,7 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
   /**
    * Bind de estilo de transição ao host para ser controlado programaticamente
    */
-  @HostBinding('style.transition') private transition: '.2s ease' | null = '.2s ease';
+  @HostBinding('style.transition') private transition: '.3s ease' | null = '.3s ease';
 
   /**
    * Bind de animações de enter/leave do step
@@ -111,8 +115,9 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
     const translate3dValue = `translate3d(${this.elementRef.nativeElement.style.transform
       .replace('translate3d(', '')
       .replace(')', '')})`;
+
     return {
-      value: '',
+      value: 'created',
       params: {
         translate3dValue,
       },
@@ -138,8 +143,6 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * Hook chamado após inicialização de children desse step
    */
   public afterChildrenInit: () => void;
-
-  public canDropInBetweenSteps: boolean = true;
 
   /**
    * Steps filhos
@@ -274,12 +277,16 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
     asPlaceholder?: boolean;
     log?: boolean;
   }): Promise<FlowchartStepComponent<T>> {
-    return this.flowchartStepsService.createStep({
+    const child = await this.flowchartStepsService.createStep({
       pendingStep: pendingComponent,
       parentStep: this,
       asSibling,
       asPlaceholder: asPlaceholder ?? this.isPlaceholder,
     });
+
+    this.flowchartRendererService.reCenterFlow();
+
+    return child;
   }
 
   public addStepResult(resultType: FlowchartStepResultsEnum, asSibling?: boolean): void {
@@ -356,7 +363,10 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * @returns
    */
   public getCoordinates(): FlowchartStepCoordinates {
-    const { height, width } = this.elementRef.nativeElement.getBoundingClientRect();
+    const { height, width } = {
+      height: this.elementRef.nativeElement.offsetHeight,
+      width: this.elementRef.nativeElement.offsetWidth,
+    };
 
     return {
       ...this.dragDir.getFreeDragPosition(),
@@ -454,7 +464,6 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    */
   private onDragStart(dragEvent: CdkDragStart) {
     this.transition = null;
-
     this.dragPositionBeforeDragStart = this.getCoordinates();
     this.children.forEach((child) => child.onDragStart(dragEvent));
   }
@@ -464,7 +473,7 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * @param dragEvent Event
    */
   private onDragEnd(e: CdkDragEnd) {
-    this.transition = '.2s ease';
+    this.transition = '.3s ease';
 
     this.children.forEach((child) => child.onDragEnd(e));
   }
@@ -508,7 +517,7 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
   private observeHostResize(): void {
     new ResizeObserver((entries) => {
       if (entries[0].contentRect.width == 0) return;
-      this.flowchartStepsService.setStepInitialCoordinates(this, false);
+      this.flowchartRendererService.reCenterFlow();
     }).observe(this.elementRef.nativeElement);
   }
 }

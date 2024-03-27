@@ -64,7 +64,7 @@ export class FlowchartStepsService {
     if (!pendingStep) return;
 
     // Intervalo base para criação de steps
-    await new Promise((resolve) => setTimeout(() => resolve(true), 50));
+    await new Promise((resolve) => setTimeout(() => resolve(true), 0));
     const compRef: ComponentRef<FlowchartStepComponent<T>> = this.flowchartViewContainer.createComponent(
       stepsObj.find((step) => step.type == pendingStep.type).component
     );
@@ -241,7 +241,6 @@ export class FlowchartStepsService {
    */
   private afterStepRender = (step: FlowchartStepComponent): void => {
     this.setStepInitialCoordinates(step);
-    this.flowchartRendererService.reCenterFlow();
   };
 
   /**
@@ -296,7 +295,7 @@ export class FlowchartStepsService {
   };
 
   /**
-   * Limpa conectores antigos, caso não existam mais
+   * Limpa conectores
    */
   public removeConnector(parentId: string, childId: string): void {
     this.connectorsService.removeConnector(parentId, childId);

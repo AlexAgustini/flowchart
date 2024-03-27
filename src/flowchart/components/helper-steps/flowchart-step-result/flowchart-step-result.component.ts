@@ -14,13 +14,11 @@ export class FlowchartStepResultComponent extends FlowchartStepComponent {
   public override type = FlowchartStepsEnum.STEP_RESULT;
 
   ngOnInit() {
-    // this.dragDir.disabled = true;
+    this.dragDir.disabled = true;
   }
 
   override afterChildrenInit = (): void => {
     if (this.children.length) return;
     this.addDroparea();
-
-    this.flowchartStepsService.setStepInitialCoordinates(this);
   };
 }

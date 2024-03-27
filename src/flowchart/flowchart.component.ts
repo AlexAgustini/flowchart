@@ -24,6 +24,7 @@ export class FlowchartComponent {
 
   constructor(
     private flowchartService: FlowchartService,
+    private flowchartRendererService: FlowchartRendererService,
     private r: FlowchartRendererService,
     private dragService: FlowchartDragService,
     private elementRef: ElementRef
@@ -31,7 +32,6 @@ export class FlowchartComponent {
 
   ngAfterViewInit() {
     this.flowchartService.initFlowchart(this.viewContainerRef, this.elementRef, this.svgRef);
-
     this.flowchartService.initSteps(mock);
   }
 
@@ -53,6 +53,10 @@ export class FlowchartComponent {
 
   logFlow() {
     console.log(this.r.flow);
+  }
+
+  recenter() {
+    this.flowchartRendererService.reCenterFlow();
   }
 }
 

@@ -7,8 +7,6 @@ import { FlowchartStepDropareaComponent } from '../../helper-steps/step-droparea
   templateUrl: './flowchart-step-finalization.component.html',
 })
 export class FlowchartStepFinalizationComponent extends FlowchartStepComponent {
-  public override canDropInBetweenSteps = false;
-
   public override afterChildrenInit = () => {
     if (this.children[0] instanceof FlowchartStepDropareaComponent) {
       this.children[0].removeSelf();
@@ -19,6 +17,5 @@ export class FlowchartStepFinalizationComponent extends FlowchartStepComponent {
     super.ngOnDestroy();
 
     this.parent.addDroparea();
-    console.log('ondestroy');
   }
 }

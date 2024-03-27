@@ -37,7 +37,6 @@ export class FlowchartStepDirective {
       FlowchartConstants.FLOWCHART_ANIMATE_CONNECTORS_CLASS
     );
     this.dragService.onFlowchartDrop(event);
-    this.flowchartRendererService.reCenterFlow();
   }
 
   @HostListener('dragstart', ['$event']) onDragStart(e: DragEvent) {

@@ -99,6 +99,7 @@ export class FlowchartDragService {
 
     if (this.flowchartRendererService.hasPlaceholderSteps()) {
       this.flowchartRendererService.getAllPlaceholderSteps().forEach((step) => (step.isPlaceholder = false));
+      this.flowchartRendererService.reCenterFlow();
     }
   }
 
