@@ -22,8 +22,5 @@ export class FlowchartStepRequestComponent extends FlowchartStepComponent {
 
   public removeErrorPath() {
     this.children[1].removeSelf(true);
-    setTimeout(() => {
-      this.reCenterChildren();
-    }, 0);
   }
 }

@@ -5,6 +5,7 @@ import { Point } from '@angular/cdk/drag-drop';
 import { FlowchartConstants } from '../helpers/flowchart-constants';
 import { fromEvent } from 'rxjs';
 import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
+import { FlowchartStepRequestComponent } from '../components/steps';
 
 @Injectable({
   providedIn: 'root',
@@ -157,12 +158,12 @@ export class FlowchartRendererService {
 
   /**
    * Calcula coordenadas coordenadas de um ponto XY relativos à tela e os retorna relativos ao elemento do flowchart
-   * @param point Ponto a ser calculado
+   * @param point X/Y relativos à tela
    */
-  public getPointXYRelativeToFlowchart(point: Point): Point {
+  public getPointXYRelativeToFlowchart(clientX: number, clientY: number): Point {
     return {
-      x: point.x - this.flowchartBoundingRect.x,
-      y: point.y - this.flowchartBoundingRect.y,
+      x: clientX + this.flowchartElement.nativeElement.scrollLeft - this.flowchartBoundingRect.left,
+      y: clientY + this.flowchartElement.nativeElement.scrollTop - this.flowchartBoundingRect.top,
     };
   }
 
@@ -187,29 +188,25 @@ export class FlowchartRendererService {
   private treatFlowchartDimensions(): void {
     // Step mais à esquerda do chart
     const lowestXStep = this.steps
-      .reduce((prev, curr) => {
-        return prev.getCoordinates().x < curr.getCoordinates().x ? prev : curr;
-      })
+      .reduce((prev, curr) => (prev.getCoordinates().x < curr.getCoordinates().x ? prev : curr))
       .getCoordinates();
 
     // Step mais à direita do chart
     const highestXStep = this.steps
-      .reduce((prev, curr) => {
-        return prev.getCoordinates().x + prev.getCoordinates().width >
-          curr.getCoordinates().x + curr.getCoordinates().width
+      .reduce((prev, curr) =>
+        prev.getCoordinates().x + prev.getCoordinates().width > curr.getCoordinates().x + curr.getCoordinates().width
           ? prev
-          : curr;
-      })
+          : curr
+      )
       .getCoordinates();
 
     // Step mais abaixo no chart
     const highestYStep = this.steps
-      .reduce((prev, curr) => {
-        return prev.getCoordinates().y + prev.getCoordinates().height >
-          curr.getCoordinates().y + curr.getCoordinates().height
+      .reduce((prev, curr) =>
+        prev.getCoordinates().y + prev.getCoordinates().height > curr.getCoordinates().y + curr.getCoordinates().height
           ? prev
-          : curr;
-      })
+          : curr
+      )
       .getCoordinates();
 
     const flowchartScrollWidth = this.flowchartElement.nativeElement.scrollWidth;
@@ -282,6 +279,8 @@ export class FlowchartRendererService {
       0
     );
 
+    childrenWidth += FlowchartConstants.FLOWCHART_STEPS_GAP;
+
     return Math.max(stepWidth, childrenWidth);
   }
 
@@ -294,13 +293,15 @@ export class FlowchartRendererService {
       const stepCoords = step.getCoordinates();
       const stepYBottom = stepCoords.y + stepCoords.height;
       const stepXCenter = stepCoords.x + stepCoords.width / 2;
-
       const childYTop = stepYBottom + FlowchartConstants.FLOWCHART_STEPS_GAP;
 
       let totalTreeWidth = 0;
 
       step.children.forEach((child) => {
         totalTreeWidth += this.getStepTreeWidth(child);
+        if (child instanceof FlowchartStepRequestComponent) {
+          console.log(this.getStepTreeWidth(child));
+        }
       });
 
       let leftXTree = stepXCenter - totalTreeWidth / 2;
@@ -309,10 +310,6 @@ export class FlowchartRendererService {
 
       step.children.forEach((child, i) => {
         const childTreeWidth = this.getStepTreeWidth(child);
-
-        if (step.type == FlowchartStepsEnum.STEP_REQUEST) {
-          console.log(childTreeWidth);
-        }
 
         let childX = leftXTree + childTreeWidth / 2 - child.elementRef.nativeElement.offsetWidth / 2;
 

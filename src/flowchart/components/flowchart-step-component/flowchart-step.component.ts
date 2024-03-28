@@ -37,7 +37,7 @@ import { cloneDeep } from 'lodash';
           opacity: 0,
         }),
         animate(
-          '.3s ease',
+          '.3s .1s ease',
           style({
             opacity: 1,
           })
@@ -112,9 +112,7 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    */
   @HostBinding('@animation')
   public get animation(): Record<string, any> {
-    const translate3dValue = `translate3d(${this.elementRef.nativeElement.style.transform
-      .replace('translate3d(', '')
-      .replace(')', '')})`;
+    const translate3dValue = this.elementRef.nativeElement.style.transform;
 
     return {
       value: 'created',
@@ -318,35 +316,11 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
     const thisCoordinates = this.getCoordinates();
     this.compRef.destroy();
     this.afterStepDestroy(this, thisCoordinates, recursive);
+    this.flowchartRendererService.reCenterFlow();
 
     if (recursive) {
       this.children.forEach((child) => child.removeSelf(true));
     }
-  }
-
-  /**
-   * Recentraliza children desse step com base nas dimensões dele
-   */
-  public reCenterChildren(): void {
-    const onlyChild = this.children[0];
-    if (!onlyChild || this.children.length > 1) return;
-
-    const thisCoordinates = this.getCoordinates();
-    const childOldCoordinates = onlyChild.getCoordinates();
-    const childNewX = thisCoordinates.x + thisCoordinates.width / 2 - childOldCoordinates.width / 2;
-
-    const xDiff = Math.abs(childOldCoordinates.x - childNewX);
-    this.children[0].setCoordinates({
-      x: childNewX,
-      y: childOldCoordinates.y,
-    });
-
-    this.children[0].children.forEach((child) => {
-      child.moveSelfAndAllChildren({
-        x: xDiff,
-        y: 0,
-      });
-    });
   }
 
   /**
@@ -438,6 +412,19 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
       (child) =>
         child.type == FlowchartStepsEnum.STEP_RESULT && child.data?.resultType == FlowchartStepResultsEnum.ERROR
     );
+  }
+
+  /**
+   * Retorna se tem children
+   */
+  public hasChildren(): boolean {
+    return this.children.length > 0;
+  }
+  /**
+   * Retorna se tem mais de 1 child
+   */
+  public hasMoreThanOneChild(): boolean {
+    return this.children.length > 1;
   }
 
   /**

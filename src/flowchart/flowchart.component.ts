@@ -42,10 +42,7 @@ export class FlowchartComponent {
   }
 
   @HostListener('dblclick', ['$event']) dblClick(e: MouseEvent) {
-    const { x, y } = this.r.getPointXYRelativeToFlowchart({
-      x: e.clientX,
-      y: e.clientY,
-    });
+    const { x, y } = this.r.getPointXYRelativeToFlowchart(e.clientX, e.clientY);
 
     console.log('x :>> ', x);
     console.log('y :>> ', y);
@@ -70,7 +67,7 @@ const mock: FlowchartStep = {
       type: FlowchartStepsEnum.STEP_REQUEST,
       children: [
         {
-          type: FlowchartStepsEnum.STEP_SCRIPT,
+          type: FlowchartStepsEnum.STEP_CONDITIONAL,
         },
         {
           type: FlowchartStepsEnum.STEP_SCRIPT,

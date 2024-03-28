@@ -8,7 +8,7 @@ import { FlowchartCoordinatesStorageService } from './flowchart-coordinates-stor
 import { stepsObj } from '../helpers/flowchart-steps-registry';
 import { FlowchartStepsDataType } from '../types/flowchart-steps-data-type';
 import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
-import { StepsPathsRegistry } from '../helpers/steps-paths-registry';
+import { FlowchartStepsConfiguration } from '../helpers/flowchart-steps-configurations';
 
 @Injectable({
   providedIn: 'root',
@@ -78,7 +78,9 @@ export class FlowchartStepsService {
     });
 
     // Get step pre-configured pathsResults
-    const createdStepPathsResults = StepsPathsRegistry.find((stepPath) => stepPath.type == compRef.instance.type);
+    const createdStepPathsResults = FlowchartStepsConfiguration.find(
+      (stepPath) => stepPath.stepType == compRef.instance.type
+    );
 
     // If there are no pathsResults configured, just continue creating the children steps without creating a stepResult
     if (!createdStepPathsResults) {
@@ -91,7 +93,7 @@ export class FlowchartStepsService {
       return compRef.instance;
     }
 
-    createdStepPathsResults.pathsResultTypes.forEach(async (pathResult, i) => {
+    createdStepPathsResults.stepResults.forEach(async (pathResult, i) => {
       const shouldCreateStepResult = i == 0 || pathResult.required || pendingStep.children?.[i];
       if (!shouldCreateStepResult) return;
 
@@ -107,6 +109,7 @@ export class FlowchartStepsService {
       }
     });
 
+    compRef.instance.afterChildrenInit?.();
     return compRef.instance;
   }
 

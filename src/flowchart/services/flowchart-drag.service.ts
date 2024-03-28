@@ -5,6 +5,7 @@ import { FlowchartStepCoordinates } from '../types/flowchart-step.type';
 import { FlowchartRendererService } from './flowchart-renderer.service';
 import { FlowchartConstants } from '../helpers/flowchart-constants';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
+import { FlowchartStepsConfiguration } from '../helpers/flowchart-steps-configurations';
 @Injectable({
   providedIn: 'root',
 })
@@ -132,14 +133,14 @@ export class FlowchartDragService {
 
       this.createDropPlaceholder(parentStep);
     } else {
+      // Se não houverem placeholder steps, retorna
+      if (!this.flowchartRendererService.hasPlaceholderSteps()) return;
+
       // Se estiver ocorrendo drag encima de um droparea, retorna
-      if (this.isDraggingOverDroparea(event.clientX, event.clientY)) return;
+      if (this.isDraggingOverDroparea(event)) return;
 
       // Se estiver em delay de criação de placeholders, retorna (para evitar bugs visuais)
       if (this.isOnPlaceholderCreationDelay) return;
-
-      // Se não houverem placeholder steps, retorna
-      if (!this.flowchartRendererService.hasPlaceholderSteps()) return;
 
       this.removeDropPlaceholders();
     }
@@ -158,14 +159,12 @@ export class FlowchartDragService {
       FlowchartConstants.FLOWCHART_MIN_PLACEHOLDER_CREATION_DELAY
     );
 
-    if (
-      !this.getDragData('canDropInBetweenSteps') &&
-      parentStep.children[0].type !== FlowchartStepsEnum.STEP_DROPAREA
-    ) {
-      return;
-    }
-
     const stepType = this.getDragData('STEP_TYPE');
+    const canDropInBetweenSteps = FlowchartStepsConfiguration.find(
+      (step) => step.stepType == stepType
+    ).canDropInBetweenSteps;
+
+    if (!canDropInBetweenSteps && parentStep.children[0].type !== FlowchartStepsEnum.STEP_DROPAREA) return;
 
     parentStep.children.forEach((child) => child.storeDragCoordinatesBeforeBeingAffectedByPlaceholder());
     parentStep.addChild({
@@ -189,13 +188,13 @@ export class FlowchartDragService {
    * @param clientX Coordenadas do mouse eixo X
    * @param clientY Coordenadas do mouse eixo Y
    */
-  private isDraggingOverDroparea(clientX: number, clientY: number): boolean {
+  private isDraggingOverDroparea(event: DragEvent): boolean {
     if (!this.dropareaCoordinates) return false;
 
-    const { x: mouseX, y: mouseY } = this.flowchartRendererService.getPointXYRelativeToFlowchart({
-      x: clientX,
-      y: clientY,
-    });
+    const { x: mouseX, y: mouseY } = this.flowchartRendererService.getPointXYRelativeToFlowchart(
+      event.clientX,
+      event.clientY
+    );
 
     const dropareaLeftMargin = this.dropareaCoordinates.x;
     const dropareaRightMargin = this.dropareaCoordinates.x + this.dropareaCoordinates.width;

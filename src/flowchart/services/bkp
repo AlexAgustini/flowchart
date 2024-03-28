@@ -1,0 +1,51 @@
+ private render() {
+    const renderTree = (step: FlowchartStepComponent) => {
+      if (!step.children.length) {
+        return;
+      }
+
+      const stepCoords = step.getCoordinates();
+      const stepYBottom = stepCoords.y + stepCoords.height;
+      const stepXCenter = stepCoords.x + stepCoords.width / 2;
+      const childYTop = stepYBottom + FlowchartConstants.FLOWCHART_STEPS_GAP;
+
+      if (step.children.length == 1) {
+        step.children[0].setCoordinates({
+          x: stepXCenter - step.children[0].getCoordinates().width / 2,
+          y: childYTop,
+        });
+
+        renderTree(step.children[0]);
+        return;
+      }
+
+      let totalTreeWidth = 0;
+
+      step.children.forEach((child) => {
+        totalTreeWidth += this.getStepTreeWidth(child);
+      });
+
+      let leftXTree = stepXCenter - totalTreeWidth / 2;
+
+      step.children.forEach((child, i) => {
+        const childTreeWidth = this.getStepTreeWidth(child);
+
+        let childX = leftXTree - child.elementRef.nativeElement.offsetWidth / 2;
+
+        if (i > 0) {
+          childX = Math.max(childX, this.getStepTreeWidth(step.children[i - 1]));
+        }
+
+        child.setCoordinates({
+          x: childX - FlowchartConstants.FLOWCHART_STEPS_GAP,
+          y: childYTop,
+        });
+
+        leftXTree = stepXCenter + childTreeWidth + FlowchartConstants.FLOWCHART_STEPS_GAP;
+
+        renderTree(child);
+      });
+    };
+
+    renderTree(this.getRootStep());
+  }

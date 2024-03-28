@@ -71,10 +71,7 @@ export class FlowchartStepDirective {
    * @param event Cria step na em posição livre dentro do flowchart
    */
   private createStepWithFreePosition(event: DragEvent): void {
-    const { x, y } = this.flowchartRendererService.getPointXYRelativeToFlowchart({
-      x: event.x,
-      y: event.y,
-    });
+    const { x, y } = this.flowchartRendererService.getPointXYRelativeToFlowchart(event.clientX, event.clientY);
 
     this.pendingStep.id = 's' + Date.now();
 
