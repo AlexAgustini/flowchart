@@ -5,4 +5,8 @@ import { FlowchartStepComponent } from '../../flowchart-step-component/flowchart
   selector: 'flowchart-step-collection-component',
   templateUrl: './flowchart-step-collection.component.html',
 })
-export class FlowchartStepCollectionComponent extends FlowchartStepComponent {}
+export class FlowchartStepCollectionComponent extends FlowchartStepComponent {
+  log() {
+    console.log(this.data);
+  }
+}

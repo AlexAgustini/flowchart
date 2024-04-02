@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { FlowchartStepComponent } from '../../flowchart-step-component/flowchart-step.component';
-import { FlowchartStepDropareaComponent } from '../../helper-steps/step-droparea/flowchart-step-droparea.component';
+import { FlowchartStepsEnum } from '../../../enums/flowchart-steps.enum';
 
 @Component({
   selector: 'flowchart-step-finalization-component',
@@ -8,14 +8,8 @@ import { FlowchartStepDropareaComponent } from '../../helper-steps/step-droparea
 })
 export class FlowchartStepFinalizationComponent extends FlowchartStepComponent {
   public override afterChildrenInit = () => {
-    if (this.children[0] instanceof FlowchartStepDropareaComponent) {
+    if (this.children?.[0].type == FlowchartStepsEnum.STEP_DROPAREA) {
       this.children[0].removeSelf();
     }
   };
-
-  override ngOnDestroy(): void {
-    super.ngOnDestroy();
-
-    this.parent.addDroparea();
-  }
 }

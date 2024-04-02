@@ -22,12 +22,6 @@ export class FlowchartDragService {
    */
   private isOnPlaceholderCreationDelay: boolean;
 
-  public stepsOnDragStart: Array<{
-    id: string;
-    type: FlowchartStepsEnum;
-    dimensions: FlowchartStepCoordinates;
-  }>;
-
   /**
    * Coordenadas de um droparea sobre o qual pode ocorrer um evento de drag
    */
@@ -49,11 +43,15 @@ export class FlowchartDragService {
     this.dragData.clear();
   }
 
+  public getDragData(key: 'STEP_TYPE'): FlowchartStepsEnum;
+  public getDragData(key: 'data'): any;
+  public getDragData(key: 'canDropAnywhere'): boolean;
+
   /**
-   *
-   * @param key Busca chave no {@link dragData}
+   * Retorna dados de drag
+   * @param key Chave setada
    */
-  public getDragData(key: 'STEP_TYPE' | 'data' | 'canDropAnywhere'): any {
+  public getDragData(key: 'STEP_TYPE' | 'data' | 'canDropAnywhere') {
     return this.dragData.get(key);
   }
 
@@ -71,15 +69,6 @@ export class FlowchartDragService {
    */
   public onFlowchartDragStart(event: DragEvent): void {
     this.flowchartRendererService.isDraggingNewStep = true;
-    this.stepsOnDragStart = Array.from(
-      this.flowchartRendererService.steps.map((step) => {
-        return {
-          id: step.id,
-          type: step.type,
-          dimensions: step.getCoordinates(),
-        };
-      })
-    );
   }
 
   /**
@@ -96,12 +85,11 @@ export class FlowchartDragService {
    */
   public onFlowchartDrop(e: DragEvent): void {
     this.flowchartRendererService.isDraggingNewStep = false;
-    this.stepsOnDragStart = null;
 
     if (this.flowchartRendererService.hasPlaceholderSteps()) {
       this.flowchartRendererService.getAllPlaceholderSteps().forEach((step) => (step.isPlaceholder = false));
-      this.flowchartRendererService.reCenterFlow();
     }
+    this.flowchartRendererService.render();
   }
 
   /**
@@ -109,27 +97,26 @@ export class FlowchartDragService {
    * @param event
    */
   private observeDragBelowStep(event: DragEvent): void {
-    const isBelowStep = this.stepsOnDragStart?.find((step) => {
+    const hasStepAbove = this.flowchartRendererService?.steps.find((step) => {
       if (step.type != FlowchartStepsEnum.STEP_RESULT && step.type != FlowchartStepsEnum.STEP_INITIAL) return;
+
+      const stepCoords = step.getCoordinates();
+
       return (
-        event.offsetX > step.dimensions.x - FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_WIDTH_THRESHOLD &&
+        event.offsetX > stepCoords.x - FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_WIDTH_THRESHOLD &&
         event.offsetX <
-          step.dimensions.x +
-            step.dimensions.width +
-            FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_WIDTH_THRESHOLD &&
-        step.dimensions.y + step.dimensions.height < event.offsetY &&
-        step.dimensions.y +
-          step.dimensions.height +
-          FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_HEIGHT_THRESHOLD >
+          stepCoords.x + stepCoords.width + FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_WIDTH_THRESHOLD &&
+        stepCoords.y + stepCoords.height < event.offsetY &&
+        stepCoords.y + stepCoords.height + FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_HEIGHT_THRESHOLD >
           event.offsetY
       );
     });
 
-    if (isBelowStep) {
+    if (hasStepAbove) {
       // Caso esteja ná area de drop de um step, mas já tenha placeholder renderizados, retorna
       if (this.flowchartRendererService.hasPlaceholderSteps()) return;
 
-      const parentStep = this.flowchartRendererService.getStepById(isBelowStep.id);
+      const parentStep = this.flowchartRendererService.getStepById(hasStepAbove.id);
 
       this.createDropPlaceholder(parentStep);
     } else {
@@ -151,7 +138,7 @@ export class FlowchartDragService {
    * @param connector
    * @returns
    */
-  public createDropPlaceholder(parentStep: FlowchartStepComponent) {
+  private createDropPlaceholder(parentStep: FlowchartStepComponent) {
     if (this.isOnPlaceholderCreationDelay) return;
     this.isOnPlaceholderCreationDelay = true;
     setTimeout(
@@ -160,10 +147,14 @@ export class FlowchartDragService {
     );
 
     const stepType = this.getDragData('STEP_TYPE');
+    const canDropInBetweenSteps = FlowchartStepsConfiguration.find(
+      (step) => step.stepType == stepType
+    ).canDropInBetweenSteps;
+
+    if (canDropInBetweenSteps === false) return;
 
     if (parentStep.children[0].type == FlowchartStepsEnum.STEP_DROPAREA) return;
 
-    parentStep.children.forEach((child) => child.storeDragCoordinatesBeforeBeingAffectedByPlaceholder());
     parentStep.addChild({
       pendingComponent: {
         type: stepType,

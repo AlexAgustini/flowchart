@@ -5,8 +5,4 @@ import { FlowchartStepComponent } from '../../flowchart-step-component/flowchart
   selector: 'flowchart-step-flow-request-component',
   templateUrl: './flowchart-step-flow-request-component.html',
 })
-export class FlowchartStepFlowRequestComponent extends FlowchartStepComponent {
-  public override afterChildrenInit = () => {
-    // this.flowchartStepsService.setStepInitialCoordinates(this);
-  };
-}
+export class FlowchartStepFlowRequestComponent extends FlowchartStepComponent {}

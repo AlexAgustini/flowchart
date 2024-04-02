@@ -7,6 +7,7 @@ export type FlowchartStepConfiguration = {
     path: FlowchartStepResultsEnum;
     required?: boolean;
   }>;
+  canDropInBetweenSteps?: boolean;
 };
 
 export const FlowchartStepsConfiguration: Array<FlowchartStepConfiguration> = [
@@ -32,6 +33,7 @@ export const FlowchartStepsConfiguration: Array<FlowchartStepConfiguration> = [
   },
   {
     stepType: FlowchartStepsEnum.STEP_LOOP_END,
+    stepResults: [{ path: FlowchartStepResultsEnum.LOOP_END }],
   },
   {
     stepType: FlowchartStepsEnum.STEP_REQUEST,
@@ -44,5 +46,11 @@ export const FlowchartStepsConfiguration: Array<FlowchartStepConfiguration> = [
   {
     stepType: FlowchartStepsEnum.STEP_FINALIZATION,
     stepResults: [],
+    canDropInBetweenSteps: false,
+  },
+  {
+    stepType: FlowchartStepsEnum.STEP_EXECUTION_RETURN,
+    stepResults: [],
+    canDropInBetweenSteps: false,
   },
 ];

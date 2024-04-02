@@ -63,8 +63,7 @@ export class FlowchartStepsService {
   }): Promise<FlowchartStepComponent<T>> {
     if (!pendingStep) return;
 
-    // Intervalo base para criação de steps
-    await new Promise((resolve) => setTimeout(() => resolve(true), 0));
+    await new Promise((resolve) => setTimeout(() => resolve(true), 50));
     const compRef: ComponentRef<FlowchartStepComponent<T>> = this.flowchartViewContainer.createComponent(
       stepsObj.find((step) => step.type == pendingStep.type).component
     );
@@ -133,7 +132,6 @@ export class FlowchartStepsService {
   }): Promise<FlowchartStepComponent<T>> {
     if (!pendingStep) return;
 
-    // Intervalo base para criação de steps
     await new Promise((resolve) => setTimeout(() => resolve(true), 0));
     const compRef: ComponentRef<FlowchartStepComponent<T>> = this.flowchartViewContainer.createComponent(
       stepsObj.find((step) => step.type == pendingStep.type).component
@@ -250,11 +248,7 @@ export class FlowchartStepsService {
    * Callbacks a serem realizados após destruição do step
    * @param step Step destruído
    */
-  private afterStepDestroy = (
-    destroyedStep: FlowchartStepComponent,
-    destroyedStepCoordinates: FlowchartStepCoordinates,
-    recursive?: boolean
-  ): void => {
+  private afterStepDestroy = (destroyedStep: FlowchartStepComponent, recursive?: boolean): void => {
     const destroyedStepParent = destroyedStep.parent;
 
     // Seta novo pai dos filhos do step destruído
@@ -274,11 +268,6 @@ export class FlowchartStepsService {
     // Move todos steps filhos para cima no eixo Y correspondente à altura do step destruído
     destroyedStep.children.forEach((child) => {
       this.removeConnector(destroyedStep.id, child.id);
-
-      child.moveSelfAndAllChildren({
-        x: 0,
-        y: -(destroyedStepCoordinates.height + FlowchartConstants.FLOWCHART_STEPS_GAP),
-      });
     });
 
     // Remove stepResults(caso não seja remoção recursiva)
@@ -308,7 +297,7 @@ export class FlowchartStepsService {
    * Seta coordenadas iniciais do step
    * @param step
    */
-  public setStepInitialCoordinates(step: FlowchartStepComponent, increaseHeight?: boolean): void {
+  public setStepInitialCoordinates(step: FlowchartStepComponent): void {
     if (step.type == FlowchartStepsEnum.STEP_INITIAL) {
       step.setCoordinates({
         x: this.flowchartElement.nativeElement.scrollWidth / 2 - step.getCoordinates().width / 2,
@@ -321,14 +310,14 @@ export class FlowchartStepsService {
     if (stepCoordinates) {
       step.setCoordinates(stepCoordinates);
     } else {
-      this.setStepCoordinates(step, increaseHeight);
+      this.setStepCoordinates(step);
     }
   }
 
   /**
    * Calcula coordenadas de um novo step
    */
-  private setStepCoordinates(newStep: FlowchartStepComponent, increaseHeight = true): void {
+  private setStepCoordinates(newStep: FlowchartStepComponent): void {
     if (!newStep?.parent) return;
 
     const parentCoordinates = newStep.parent.getCoordinates();
@@ -343,18 +332,6 @@ export class FlowchartStepsService {
         x: parentXCenter - newStepDimensions.width / 2,
         y: parentCoordinates.y + parentCoordinates.height + FlowchartConstants.FLOWCHART_STEPS_GAP,
       });
-
-      // Caso o step esteja sendo inserido no meio de outros dois steps, é necessário jogar os steps subsequentes para baixo
-      if (newStep.children.length && increaseHeight) {
-        newStep.children
-          .filter((step) => step.type !== FlowchartStepsEnum.STEP_RESULT)
-          .forEach((child) =>
-            child.moveSelfAndAllChildren({
-              x: 0,
-              y: newStepDimensions.height + FlowchartConstants.FLOWCHART_STEPS_GAP,
-            })
-          );
-      }
     }
   }
 

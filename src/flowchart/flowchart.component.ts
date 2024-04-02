@@ -4,8 +4,10 @@ import { FlowchartStep } from './types/flowchart-step.type';
 import { NgStyle } from '@angular/common';
 import { FlowchartDragService } from './services/flowchart-drag.service';
 import { FlowchartStepsEnum } from './enums/flowchart-steps.enum';
-import { FlowchartService } from './services/flowchart.service';
-
+import { FlowchartService, flowB } from './services/flowchart.service';
+import { FlowchartStepResultsEnum } from './enums/flowchart-step-results-enum';
+import { FlowBlock } from './types/flow-block.type';
+import { FlowchartConstants } from './helpers/flowchart-constants';
 @Component({
   standalone: true,
   imports: [NgStyle],
@@ -27,12 +29,122 @@ export class FlowchartComponent {
     private flowchartRendererService: FlowchartRendererService,
     private r: FlowchartRendererService,
     private dragService: FlowchartDragService,
-    private elementRef: ElementRef
+    private elementRef: ElementRef<HTMLDivElement>
   ) {}
 
   ngAfterViewInit() {
     this.flowchartService.initFlowchart(this.viewContainerRef, this.elementRef, this.svgRef);
-    this.flowchartService.initSteps(mock);
+
+    const initialBlock = {
+      blockId: 'initialExecutionBlock',
+      type: FlowchartStepsEnum.STEP_INITIAL,
+      nextBlocks: { success: flowB.initialExecutionBlock },
+    };
+
+    const step = this.buildFlowchartStepByFlowBlock(initialBlock as any);
+
+    this.flowchartService.initSteps(step);
+  }
+
+  /**
+   * Constroi um passo do flowchart baseado no bloco do fluxo do banco de dados
+   * @param flowBlock
+   */
+  public buildFlowchartStepByFlowBlock(flowBlock: FlowBlock): FlowchartStep {
+    if (!flowBlock) {
+      return;
+    }
+
+    const flowchartStep = {
+      id: flowBlock.blockId,
+      type: flowBlock.type,
+      data: {},
+      children: [],
+    };
+
+    switch (flowBlock.type) {
+      case FlowchartStepsEnum.STEP_REQUEST:
+        Reflect.set(flowchartStep.data, 'requestId', flowBlock.requestId);
+        Reflect.set(flowchartStep.data, 'shouldRegisterLog', flowBlock.shouldRegisterLog);
+        Reflect.set(flowchartStep.data, 'quickLogTemplateSuccess', flowBlock.quickLogTemplateSuccess);
+        Reflect.set(flowchartStep.data, 'quickLogTemplateError', flowBlock.quickLogTemplateError);
+        break;
+      case FlowchartStepsEnum.STEP_SCRIPT:
+        Reflect.set(flowchartStep.data, 'scriptId', flowBlock.scriptId);
+        break;
+      case FlowchartStepsEnum.STEP_LOOP_START:
+        Reflect.set(flowchartStep.data, 'valueToLoopPath', flowBlock.valueToLoopPath);
+        break;
+      case FlowchartStepsEnum.STEP_FLOW_REQUEST:
+        Reflect.set(flowchartStep.data, 'flowEndpoint', flowBlock.flowEndpoint);
+        break;
+      case FlowchartStepsEnum.STEP_FINALIZATION:
+        Reflect.set(flowchartStep.data, 'type', flowBlock.finalizationStatus);
+        Reflect.set(flowchartStep.data, 'lastMessage', flowBlock.lastMessage);
+        break;
+      case FlowchartStepsEnum.STEP_EXECUTION_RETURN:
+        Reflect.set(flowchartStep.data, 'type', flowBlock.type);
+        Reflect.set(flowchartStep.data, 'lastMessage', flowBlock.lastMessage);
+        Reflect.set(flowchartStep.data, 'executionReturnStatus', flowBlock.executionReturnStatus);
+        Reflect.set(flowchartStep.data, 'expectedReturnLooseBody', flowBlock.expectedReturnLooseBody);
+        Reflect.set(flowchartStep.data, 'expectedErrorReturnLooseBody', flowBlock.expectedErrorReturnLooseBody);
+        break;
+      case FlowchartStepsEnum.STEP_CONDITIONAL:
+        Reflect.set(flowchartStep.data, 'conditionalType', flowBlock.conditionalType);
+        Reflect.set(flowchartStep.data, 'conditionSimple', flowBlock.conditionSimple);
+        if (flowBlock.conditionComposition) {
+          for (let condition of flowBlock.conditionComposition) {
+            condition.firstValue = condition.firstValue as string;
+            condition.secondValue = condition.secondValue as string;
+          }
+        }
+        Reflect.set(flowchartStep.data, 'conditionComposition', flowBlock.conditionComposition);
+        break;
+      case FlowchartStepsEnum.STEP_COLLECTION:
+        Reflect.set(flowchartStep.data, 'requestType', flowBlock.collectionRequestType);
+        Reflect.set(flowchartStep.data, 'collectionId', flowBlock.collectionId);
+        Reflect.set(flowchartStep.data, 'collectionConfigurations', {
+          id: flowBlock.collectionConfigurations?.id,
+          body: flowBlock.collectionConfigurations?.body,
+          query: flowBlock.collectionConfigurations?.query,
+          limit: flowBlock.collectionConfigurations?.limit,
+          sortDirection: flowBlock.collectionConfigurations?.sortDirection,
+          sortColumn: flowBlock.collectionConfigurations?.sortColumn,
+        });
+        break;
+      case FlowchartStepsEnum.STEP_NOTIFICATION:
+        Reflect.set(flowchartStep.data, 'notificationList', flowBlock.notificationList);
+        Reflect.set(flowchartStep.data, 'notificationMessage', flowBlock.notificationMessage);
+        break;
+    }
+
+    // População de mapeamentos
+    Reflect.set(flowchartStep.data, 'mappings', flowBlock.mappings);
+
+    // População de blocos subsequentes
+    if (flowBlock.nextBlocks.success) {
+      flowchartStep.children.push(this.buildFlowchartStepByFlowBlock(flowBlock.nextBlocks.success));
+    }
+
+    if (flowBlock.nextBlocks.error) {
+      flowchartStep.children.push(this.buildFlowchartStepByFlowBlock(flowBlock.nextBlocks.error));
+    }
+
+    return flowchartStep;
+  }
+
+  /**
+   * Retorna um bloco novo
+   * @param type
+   * @param data
+   */
+  public createFlowchartStep(type?: FlowchartStepsEnum, data?: object): FlowchartStep {
+    return {
+      id: `s${new Date().getTime()}`,
+      type: type,
+      data: data ? data : {},
+      children: [],
+    };
   }
 
   @HostListener('dragover', ['$event'])
@@ -53,7 +165,7 @@ export class FlowchartComponent {
   }
 
   recenter() {
-    this.flowchartRendererService.reCenterFlow();
+    this.flowchartRendererService.render();
   }
 }
 

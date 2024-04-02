@@ -1,8 +1,7 @@
-import { Component, HostBinding, HostListener } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { NgSwitch, NgSwitchCase, NgSwitchDefault } from '@angular/common';
 import { FlowchartStepComponent } from '../../flowchart-step-component/flowchart-step.component';
 import { FlowchartDragService } from '../../../services/flowchart-drag.service';
-import { CdkDragMove } from '@angular/cdk/drag-drop';
 
 @Component({
   selector: 'step-droparea',
@@ -19,7 +18,11 @@ export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
 
   ngOnInit() {
     this.dragDir.disabled = true;
-    this.transform = `${this.elementRef.nativeElement.style.transform} rotate(45deg)`;
+  }
+
+  override ngAfterViewInit(): void {
+    super.ngAfterViewInit();
+    this.renderer2.removeClass(this.elementRef.nativeElement, 'flowchart-step');
   }
 
   constructor(flowchartDragService: FlowchartDragService) {
@@ -27,26 +30,26 @@ export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
     this.flowchartDragService = flowchartDragService;
   }
 
-  @HostBinding('style.transform') transform;
-
   /**
    * HostListener para evento de dragEnter
    */
   @HostListener('dragenter') onDragEnter(): void {
+    this.applyDragStyles();
     this.flowchartDragService.dropareaCoordinates = this.getCoordinates();
-    this.transform = `${this.elementRef.nativeElement.style.transform} scale(1.3)`;
-    this.elementRef.nativeElement.classList.toggle('dragover');
-  }
-
-  @HostListener('dragleave') onDragLeave() {
-    this.transform = `${this.transform}`.replace('scale(1.3)', '');
-    this.elementRef.nativeElement.classList.toggle('dragover');
   }
 
   /**
-   * HostListener para evento de dragEnter
+   * HostListener para evento de dragLeave
+   */
+  @HostListener('dragleave') onDragLeave() {
+    this.removeDragStyles();
+  }
+
+  /**
+   * HostListener para evento de drop
    */
   @HostListener('drop') onDrop(): void {
+    this.removeDragStyles();
     this.parent.addChild({
       pendingComponent: { type: this.flowchartDragService.getDragData('STEP_TYPE') },
       asSibling: false,
@@ -62,5 +65,20 @@ export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
         asSibling: true,
       });
     }
+  }
+
+  private applyDragStyles(): void {
+    this.renderer2.addClass(this.elementRef.nativeElement, 'dragover');
+    const connector = this.flowchartRendererService.connectors.find((connector) => connector.childId == this.id).path;
+
+    connector.style.stroke = 'var(--primary-color)';
+    connector.style.strokeWidth = '3px';
+  }
+
+  private removeDragStyles(): void {
+    this.renderer2.removeClass(this.elementRef.nativeElement, 'dragover');
+    const connector = this.flowchartRendererService.connectors.find((connector) => connector.childId == this.id).path;
+    connector.style.stroke = 'gray';
+    connector.style.strokeWidth = '1px';
   }
 }

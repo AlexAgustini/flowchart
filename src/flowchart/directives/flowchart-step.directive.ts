@@ -33,9 +33,6 @@ export class FlowchartStepDirective {
       this.createStepWithFreePosition(event);
     }
 
-    this.flowchartRendererService.flowchartElement.nativeElement.classList.remove(
-      FlowchartConstants.FLOWCHART_ANIMATE_CONNECTORS_CLASS
-    );
     this.dragService.onFlowchartDrop(event);
   }
 
@@ -44,10 +41,6 @@ export class FlowchartStepDirective {
     this.dragService.setDragData('data', this.pendingStep.data);
     this.dragService.setDragData('canDropAnywhere', this.pendingStep.canDropAnywhere);
     this.dragService.onFlowchartDragStart(e);
-
-    this.flowchartRendererService.flowchartElement.nativeElement.classList.add(
-      FlowchartConstants.FLOWCHART_ANIMATE_CONNECTORS_CLASS
-    );
   }
 
   /**

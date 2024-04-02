@@ -1,11 +1,10 @@
-import { Flow, FlowchartStepConnector, FlowchartStepCoordinates } from '../types/flowchart-step.type';
-import { ElementRef, Injectable, ViewContainerRef, ViewChild } from '@angular/core';
+import { Flow, FlowchartStepConnector } from '../types/flowchart-step.type';
+import { ElementRef, Injectable, ViewContainerRef } from '@angular/core';
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import { Point } from '@angular/cdk/drag-drop';
 import { FlowchartConstants } from '../helpers/flowchart-constants';
 import { fromEvent } from 'rxjs';
-import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
-import { FlowchartStepRequestComponent } from '../components/steps';
+import { FlowchartStepInitialComponent } from '../components/steps';
 
 @Injectable({
   providedIn: 'root',
@@ -92,24 +91,171 @@ export class FlowchartRendererService {
   }
 
   /**
-   * Recentraliza os steps do flow e aumenta dimensões do {@link flowchartElement} caso necessário
+   * Renderiza os steps do flow e faz tratamento de dimensões do {@link flowchartElement} caso necessário
    */
-  public async reCenterFlow(): Promise<void> {
-    if (!this.steps.length || this.isDraggingNewStep) return;
+  public async render(): Promise<void> {
+    if (!this.steps.length) return;
 
-    const rootStep = this.getRootStep();
-    const rootStepCoordinates = rootStep.getCoordinates();
+    this.renderSteps();
+    await new Promise((resolve) => setTimeout(() => resolve(true), 100));
 
-    const flowchartXCenter = this.flowchartElement.nativeElement.scrollWidth / 2;
-    const rootStepXDiff = flowchartXCenter - (rootStepCoordinates.x + rootStepCoordinates.width / 2);
-
-    rootStep.moveSelfAndAllChildren({
-      x: rootStepXDiff > 10 ? rootStepXDiff : 0,
-      y: 0,
-    });
-    this.render();
     this.treatFlowchartDimensions();
     this.resizeSvgCanvas();
+  }
+
+  /**
+   * Manipula width e height do {@link flowchartElement} de acordo com as dimensões dos teps
+   */
+  private treatFlowchartDimensions(): void {
+    // Step mais à esquerda do chart
+    const lowestXStep = this.steps
+      .reduce((prev, curr) => (prev.getCoordinates().x < curr.getCoordinates().x ? prev : curr))
+      .getCoordinates();
+
+    // Step mais à direita do chart
+    const highestXStep = this.steps
+      .reduce((prev, curr) =>
+        prev.getCoordinates().x + prev.getCoordinates().width > curr.getCoordinates().x + curr.getCoordinates().width
+          ? prev
+          : curr
+      )
+      .getCoordinates();
+
+    // Step mais abaixo no chart
+    const highestYStep = this.steps
+      .reduce((prev, curr) =>
+        prev.getCoordinates().y + prev.getCoordinates().height > curr.getCoordinates().y + curr.getCoordinates().height
+          ? prev
+          : curr
+      )
+      .getCoordinates();
+
+    this.setScrollWidthDiv(
+      highestXStep.x +
+        highestXStep.width -
+        Math.abs(lowestXStep.x) +
+        FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING * 4
+    );
+
+    this.setScrollHeightDiv(highestYStep.y + highestXStep.height + FlowchartConstants.FLOWCHART_MIN_BOTTOM_PADDING);
+  }
+
+  /**
+   * Seta height da div que controla o scroll horizontal do flowchart
+   * @param height height a ser setada
+   */
+  private setScrollHeightDiv(height: number): void {
+    const scrollHeightDiv: HTMLDivElement = this.flowchartElement.nativeElement.querySelector(
+      `.${FlowchartConstants.FLOWCHART_SCROLL_HEIGHT_DIV_CLASS}`
+    );
+
+    scrollHeightDiv.style.height = `${height}px`;
+  }
+
+  /**
+   * Seta width da div que controla o scroll horizontal do flowchart
+   * @param width width a ser setada
+   */
+  private setScrollWidthDiv(width: number): void {
+    const scrollWidthDiv: HTMLDivElement = this.flowchartElement.nativeElement.querySelector(
+      `.${FlowchartConstants.FLOWCHART_SCROLL_WIDTH_DIV_CLASS}`
+    );
+
+    scrollWidthDiv.style.width = `${width}px`;
+  }
+
+  /**
+   * Mantém o width e height do {@link svgCanvas} iguais ao width e height do {@link flowchartElement} (considerando medidas de scroll)
+   */
+  private resizeSvgCanvas(): void {
+    this.svgCanvas.nativeElement.style.height = `${
+      this.flowchartElement.nativeElement.querySelector(`.${FlowchartConstants.FLOWCHART_SCROLL_HEIGHT_DIV_CLASS}`)
+        .clientHeight
+    }px`;
+    this.svgCanvas.nativeElement.style.width = `${
+      this.flowchartElement.nativeElement.querySelector(`.${FlowchartConstants.FLOWCHART_SCROLL_WIDTH_DIV_CLASS}`)
+        .clientWidth
+    }px`;
+  }
+
+  /**
+   * Retorna width mínima para renderizar uma árvore de steps
+   * @param step Step a ser avaliado
+   */
+  private getStepTreeWidth(step: FlowchartStepComponent): number {
+    const stepWidth = step.elementRef.nativeElement.getBoundingClientRect().width;
+
+    if (!step.children.length) {
+      return stepWidth;
+    }
+
+    let childrenWidth = step.children.reduce(
+      (childTreeWidth, child) => childTreeWidth + this.getStepTreeWidth(child),
+      0
+    );
+
+    childrenWidth += FlowchartConstants.FLOWCHART_STEPS_GAP;
+
+    return Math.max(stepWidth, childrenWidth);
+  }
+
+  /**
+   * Renderiza toda árvore de steps
+   */
+  private renderSteps(): void {
+    const rootStep = this.getRootStep();
+    const rootStepCoords = rootStep.getCoordinates();
+    const flowchartXCenter = this.flowchartElement.nativeElement.scrollWidth / 2;
+
+    rootStep.setCoordinates({
+      x: flowchartXCenter - rootStepCoords.width / 2,
+      y: 0,
+    });
+
+    this.renderStepTree(rootStep);
+  }
+
+  /**
+   * Renderiza árvore de steps
+   * @param step Step
+   */
+  public renderStepTree(step: FlowchartStepComponent): void {
+    if (!step?.children?.length) {
+      return;
+    }
+
+    const stepCoords = step.getCoordinates();
+    const stepYBottom = stepCoords.y + stepCoords.height;
+    const stepXCenter = stepCoords.x + stepCoords.width / 2;
+    const childYTop = stepYBottom + FlowchartConstants.FLOWCHART_STEPS_GAP;
+
+    const stepTreeWidth = step.children.reduce((acc, curr) => acc + this.getStepTreeWidth(curr), 0);
+
+    let xAccumulator = stepXCenter - stepTreeWidth / 2;
+
+    step.children.forEach((child, i) => {
+      if (child.hasBeenDragged()) {
+        this.renderStepTree(child);
+        return;
+      }
+
+      const childTreeWidth = this.getStepTreeWidth(child);
+
+      let childX = xAccumulator + childTreeWidth / 2 - child.elementRef.nativeElement.offsetWidth / 2;
+
+      if (i > 0) {
+        childX = Math.max(childX, this.getStepTreeWidth(step.children[i - 1]));
+      }
+
+      child.setCoordinates({
+        x: step.hasMoreThanOneChild() && i == 0 ? childX - FlowchartConstants.FLOWCHART_STEPS_GAP : childX,
+        y: childYTop,
+      });
+
+      xAccumulator += childTreeWidth + FlowchartConstants.FLOWCHART_STEPS_GAP;
+
+      this.renderStepTree(child);
+    });
   }
 
   /**
@@ -130,7 +276,7 @@ export class FlowchartRendererService {
    * Retorna bloco raíz do fluxo
    */
   public getRootStep(): FlowchartStepComponent {
-    return this.steps[0];
+    return this.steps.find((step) => step instanceof FlowchartStepInitialComponent);
   }
 
   /**
@@ -177,154 +323,8 @@ export class FlowchartRendererService {
   private observeEvents() {
     fromEvent(window, 'resize').subscribe({
       next: () => {
-        this.reCenterFlow();
+        this.render();
       },
     });
-  }
-
-  /**
-   * Manipula width e height do {@link flowchartElement} de acordo com as dimensões dos teps
-   */
-  private treatFlowchartDimensions(): void {
-    // Step mais à esquerda do chart
-    const lowestXStep = this.steps
-      .reduce((prev, curr) => (prev.getCoordinates().x < curr.getCoordinates().x ? prev : curr))
-      .getCoordinates();
-
-    // Step mais à direita do chart
-    const highestXStep = this.steps
-      .reduce((prev, curr) =>
-        prev.getCoordinates().x + prev.getCoordinates().width > curr.getCoordinates().x + curr.getCoordinates().width
-          ? prev
-          : curr
-      )
-      .getCoordinates();
-
-    // Step mais abaixo no chart
-    const highestYStep = this.steps
-      .reduce((prev, curr) =>
-        prev.getCoordinates().y + prev.getCoordinates().height > curr.getCoordinates().y + curr.getCoordinates().height
-          ? prev
-          : curr
-      )
-      .getCoordinates();
-
-    const flowchartScrollWidth = this.flowchartElement.nativeElement.scrollWidth;
-    const flowchartScrollHeight = this.flowchartElement.nativeElement.scrollHeight;
-
-    const isXOverflowingToLeft = lowestXStep.x - FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING < 0;
-    const isXOverflowingToRight =
-      highestXStep.x + highestXStep.width + FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING > flowchartScrollWidth;
-    const isYOverflowing =
-      highestYStep.y + highestYStep.height + FlowchartConstants.FLOWCHART_MIN_BOTTOM_PADDING * 4 >=
-      flowchartScrollHeight;
-
-    if (isXOverflowingToLeft) {
-      this.setScrollWidthDiv(
-        flowchartScrollWidth +
-          +Math.abs(lowestXStep.x) +
-          lowestXStep.width +
-          FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING
-      );
-    }
-
-    if (isXOverflowingToRight) {
-      this.setScrollWidthDiv(
-        flowchartScrollWidth + +highestXStep.x + highestXStep.width + FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING
-      );
-
-      this.flowchartElement.nativeElement.scrollTo({ left: highestXStep.x });
-    }
-
-    if (isYOverflowing) {
-      this.setScrollHeightDiv(flowchartScrollHeight + FlowchartConstants.FLOWCHART_MIN_BOTTOM_PADDING * 4);
-    }
-  }
-
-  private setScrollHeightDiv(height: number): void {
-    const scrollHeightDiv: HTMLDivElement = this.flowchartElement.nativeElement.querySelector(
-      `.${FlowchartConstants.FLOWCHART_SCROLL_HEIGHT_DIV_CLASS}`
-    );
-
-    scrollHeightDiv.style.height = `${height}px`;
-  }
-
-  private setScrollWidthDiv(width: number): void {
-    const scrollWidthDiv: HTMLDivElement = this.flowchartElement.nativeElement.querySelector(
-      `.${FlowchartConstants.FLOWCHART_SCROLL_WIDTH_DIV_CLASS}`
-    );
-
-    scrollWidthDiv.style.width = `${width}px`;
-  }
-
-  /**
-   * Mantém o width e height do {@link svgCanvas} iguais ao width e height do {@link flowchartElement} (considerando medidas de scroll)
-   */
-  private resizeSvgCanvas(): void {
-    this.svgCanvas.nativeElement.style.height = `${this.flowchartElement.nativeElement.scrollHeight}px`;
-    this.svgCanvas.nativeElement.style.width = `${
-      this.flowchartElement.nativeElement.scrollWidth - FlowchartConstants.FLOWCHART_MIN_INLINE_PADDING
-    }px`;
-  }
-
-  private getStepTreeWidth(step: FlowchartStepComponent) {
-    const stepWidth = step.elementRef.nativeElement.getBoundingClientRect().width;
-
-    if (!step.children.length) {
-      return stepWidth;
-    }
-
-    let childrenWidth = step.children.reduce(
-      (childTreeWidth, child) => childTreeWidth + this.getStepTreeWidth(child),
-      0
-    );
-
-    childrenWidth += FlowchartConstants.FLOWCHART_STEPS_GAP;
-
-    return Math.max(stepWidth, childrenWidth);
-  }
-
-  private render() {
-    const renderTree = (step: FlowchartStepComponent) => {
-      if (!step.children.length) {
-        return;
-      }
-
-      const stepCoords = step.getCoordinates();
-      const stepYBottom = stepCoords.y + stepCoords.height;
-      const stepXCenter = stepCoords.x + stepCoords.width / 2;
-      const childYTop = stepYBottom + FlowchartConstants.FLOWCHART_STEPS_GAP;
-
-      let totalTreeWidth = 0;
-
-      step.children.forEach((child) => {
-        totalTreeWidth += this.getStepTreeWidth(child);
-      });
-
-      let leftXTree = stepXCenter - totalTreeWidth / 2;
-
-      const hasMoreThanOneChild = step.children.length > 1;
-
-      step.children.forEach((child, i) => {
-        const childTreeWidth = this.getStepTreeWidth(child);
-
-        let childX = leftXTree + childTreeWidth / 2 - child.elementRef.nativeElement.offsetWidth / 2;
-
-        if (i > 0) {
-          childX = Math.max(childX, this.getStepTreeWidth(step.children[i - 1]));
-        }
-
-        child.setCoordinates({
-          x: hasMoreThanOneChild && i == 0 ? childX - FlowchartConstants.FLOWCHART_STEPS_GAP : childX,
-          y: childYTop,
-        });
-
-        leftXTree += childTreeWidth + FlowchartConstants.FLOWCHART_STEPS_GAP;
-
-        renderTree(child);
-      });
-    };
-
-    renderTree(this.getRootStep());
   }
 }
