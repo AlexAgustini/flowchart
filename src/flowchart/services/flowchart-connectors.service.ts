@@ -2,7 +2,9 @@ import { Injectable, Injector, Renderer2, RendererFactory2 } from '@angular/core
 import { FlowchartStepComponent } from '../components/flowchart-step-component/flowchart-step.component';
 import { FlowchartStepConnector, FlowchartStepCoordinates } from '../types/flowchart-step.type';
 import { FlowchartRendererService } from './flowchart-renderer.service';
-import { FlowchartConstants } from '../helpers/flowchart-constants';
+import { FlowchartConnectorsAnimationsConstants, FlowchartConstants } from '../helpers/flowchart-constants';
+import { FlowchartStepDropareaComponent } from '../components/helper-steps/step-droparea/flowchart-step-droparea.component';
+import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
 
 @Injectable({
   providedIn: 'root',
@@ -63,6 +65,17 @@ export class FlowchartConnectorsService {
     this.renderer2.setAttribute(path, 'id', `${parentId}-${childId}`);
     this.renderer2.addClass(path, FlowchartConstants.FLOWCHART_CONNECTOR_CLASS);
 
+    if (this.shouldAnimateConnector(childId)) {
+      const animateElement = this.renderer2.createElement('animate', 'http://www.w3.org/2000/svg');
+      this.renderer2.setAttribute(animateElement, 'repeatCount', 'indefinite');
+      this.renderer2.setAttribute(animateElement, 'attributeName', 'stroke-dashoffset');
+      this.renderer2.setAttribute(animateElement, 'dur', FlowchartConnectorsAnimationsConstants.DURATION);
+      this.renderer2.setAttribute(animateElement, 'values', FlowchartConnectorsAnimationsConstants.STROKE_VALUES);
+
+      this.renderer2.setAttribute(path, 'stroke-dasharray', FlowchartConnectorsAnimationsConstants.STROKE_DASHARRAY);
+      this.renderer2.appendChild(path, animateElement);
+    }
+
     const connector = { path, parentId, childId };
     this.flowchartRendererService.addConnector(connector);
 
@@ -100,7 +113,8 @@ export class FlowchartConnectorsService {
 
     const finalPath = `M${parentElXCenter},${parentElYBottom} C${controlPointX1},${controlPointY1} ${controlPointX2},${controlPointY2} ${childElXCenter},${childElYTop}`;
 
-    if (this.flowchartRendererService.isDragging) {
+    // Se está arrastando um novo step, anima renderização de conectores
+    if (this.flowchartRendererService.isDraggingNewStep) {
       const initialPath = `M${parentElXCenter},${parentElYBottom} C${parentElXCenter},${parentElYBottom} ${parentElXCenter},${parentElYBottom} ${parentElXCenter},${parentElYBottom}`;
 
       path.setAttribute('d', initialPath);
@@ -108,6 +122,7 @@ export class FlowchartConnectorsService {
         path.setAttribute('d', finalPath);
       }, 50);
     } else {
+      // Se está arrastando steps existentes, não anima renderização para não causar atraso visual
       path.setAttribute('d', finalPath);
     }
   }
@@ -137,5 +152,14 @@ export class FlowchartConnectorsService {
     return this.flowchartRendererService.connectors.find(
       (connector) => connector.parentId == parentId && connector.childId == childId
     );
+  }
+
+  /**
+   * Retorna se o conector deve ser animado
+   */
+  private shouldAnimateConnector(connectorChildId: string): boolean {
+    const childStep = this.flowchartRendererService.getStepById(connectorChildId);
+
+    return childStep?.type == FlowchartStepsEnum.STEP_DROPAREA;
   }
 }

@@ -318,6 +318,10 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
     this.afterStepDestroy(this, thisCoordinates, recursive);
     this.flowchartRendererService.reCenterFlow();
 
+    if (this.hasMoreThanOneChild() && !recursive && !this.flowchartRendererService.isDraggingNewStep) {
+      this.children[1].removeSelf(true);
+    }
+
     if (recursive) {
       this.children.forEach((child) => child.removeSelf(true));
     }
@@ -469,7 +473,7 @@ export abstract class FlowchartStepComponent<T extends FlowchartStepsDataType = 
    * Callback when dragging component
    * @param dragEvent Event
    */
-  private onDragMoved(dragEvent: CdkDragMove): void {
+  protected onDragMoved(dragEvent: CdkDragMove): void {
     FlowchartCoordinatesStorageService.setStepCoordinates(this.id, this.getCoordinates());
 
     this.children.forEach((child) => {

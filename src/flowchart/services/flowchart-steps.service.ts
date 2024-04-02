@@ -93,7 +93,7 @@ export class FlowchartStepsService {
       return compRef.instance;
     }
 
-    createdStepPathsResults.stepResults.forEach(async (pathResult, i) => {
+    createdStepPathsResults.stepResults?.forEach(async (pathResult, i) => {
       const shouldCreateStepResult = i == 0 || pathResult.required || pendingStep.children?.[i];
       if (!shouldCreateStepResult) return;
 
@@ -134,7 +134,7 @@ export class FlowchartStepsService {
     if (!pendingStep) return;
 
     // Intervalo base para criação de steps
-    await new Promise((resolve) => setTimeout(() => resolve(true), 50));
+    await new Promise((resolve) => setTimeout(() => resolve(true), 0));
     const compRef: ComponentRef<FlowchartStepComponent<T>> = this.flowchartViewContainer.createComponent(
       stepsObj.find((step) => step.type == pendingStep.type).component
     );

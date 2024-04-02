@@ -43,7 +43,6 @@ export class FlowchartStepDirective {
     this.dragService.setDragData('STEP_TYPE', this.pendingStep.type);
     this.dragService.setDragData('data', this.pendingStep.data);
     this.dragService.setDragData('canDropAnywhere', this.pendingStep.canDropAnywhere);
-    this.dragService.setDragData('canDropInBetweenSteps', this.pendingStep.canDropInBetweenSteps ?? true);
     this.dragService.onFlowchartDragStart(e);
 
     this.flowchartRendererService.flowchartElement.nativeElement.classList.add(

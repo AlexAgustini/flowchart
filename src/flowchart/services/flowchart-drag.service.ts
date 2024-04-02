@@ -38,7 +38,7 @@ export class FlowchartDragService {
    * @param key Chave
    * @param value Valor
    */
-  public setDragData(key: 'STEP_TYPE' | 'data' | 'canDropAnywhere' | 'canDropInBetweenSteps', value: any): void {
+  public setDragData(key: 'STEP_TYPE' | 'data' | 'canDropAnywhere', value: any): void {
     this.dragData.set(key, value);
   }
 
@@ -53,7 +53,7 @@ export class FlowchartDragService {
    *
    * @param key Busca chave no {@link dragData}
    */
-  public getDragData(key: 'STEP_TYPE' | 'data' | 'canDropAnywhere' | 'canDropInBetweenSteps'): any {
+  public getDragData(key: 'STEP_TYPE' | 'data' | 'canDropAnywhere'): any {
     return this.dragData.get(key);
   }
 
@@ -70,7 +70,7 @@ export class FlowchartDragService {
    * @param e Evento de drag
    */
   public onFlowchartDragStart(event: DragEvent): void {
-    this.flowchartRendererService.isDragging = true;
+    this.flowchartRendererService.isDraggingNewStep = true;
     this.stepsOnDragStart = Array.from(
       this.flowchartRendererService.steps.map((step) => {
         return {
@@ -95,7 +95,7 @@ export class FlowchartDragService {
    * @param e Evento de drag
    */
   public onFlowchartDrop(e: DragEvent): void {
-    this.flowchartRendererService.isDragging = false;
+    this.flowchartRendererService.isDraggingNewStep = false;
     this.stepsOnDragStart = null;
 
     if (this.flowchartRendererService.hasPlaceholderSteps()) {
@@ -160,11 +160,8 @@ export class FlowchartDragService {
     );
 
     const stepType = this.getDragData('STEP_TYPE');
-    const canDropInBetweenSteps = FlowchartStepsConfiguration.find(
-      (step) => step.stepType == stepType
-    ).canDropInBetweenSteps;
 
-    if (!canDropInBetweenSteps && parentStep.children[0].type !== FlowchartStepsEnum.STEP_DROPAREA) return;
+    if (parentStep.children[0].type == FlowchartStepsEnum.STEP_DROPAREA) return;
 
     parentStep.children.forEach((child) => child.storeDragCoordinatesBeforeBeingAffectedByPlaceholder());
     parentStep.addChild({

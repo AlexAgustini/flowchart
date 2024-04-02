@@ -11,3 +11,9 @@ export const FlowchartConstants = {
   FLOWCHART_MIN_BOTTOM_PADDING: 100,
   FLOWCHART_MIN_PLACEHOLDER_CREATION_DELAY: 500,
 };
+
+export const FlowchartConnectorsAnimationsConstants = {
+  STROKE_DASHARRAY: '6',
+  STROKE_VALUES: '100; 0',
+  DURATION: '4s',
+};

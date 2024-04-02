@@ -15,7 +15,6 @@ export type FlowchartStep<T extends FlowchartStepsDataType = FlowchartStepsDataT
   children?: Array<FlowchartStep>;
   parent?: FlowchartStep;
   canDropAnywhere?: boolean;
-  canDropInBetweenSteps?: boolean;
 };
 
 export type FlowchartStepConnector = {

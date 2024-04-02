@@ -32,13 +32,13 @@ export class FlowchartRendererService {
   /**
    * Flag que indica se um evento de drag está acontecendo
    */
-  private _isDragging: boolean;
+  private _isDraggingNewStep: boolean;
 
-  public get isDragging(): boolean {
-    return this._isDragging;
+  public get isDraggingNewStep(): boolean {
+    return this._isDraggingNewStep;
   }
-  public set isDragging(value: boolean) {
-    this._isDragging = value;
+  public set isDraggingNewStep(value: boolean) {
+    this._isDraggingNewStep = value;
   }
 
   public registerFlowchart(
@@ -95,7 +95,7 @@ export class FlowchartRendererService {
    * Recentraliza os steps do flow e aumenta dimensões do {@link flowchartElement} caso necessário
    */
   public async reCenterFlow(): Promise<void> {
-    if (!this.steps.length || this.isDragging) return;
+    if (!this.steps.length || this.isDraggingNewStep) return;
 
     const rootStep = this.getRootStep();
     const rootStepCoordinates = rootStep.getCoordinates();
@@ -299,9 +299,6 @@ export class FlowchartRendererService {
 
       step.children.forEach((child) => {
         totalTreeWidth += this.getStepTreeWidth(child);
-        if (child instanceof FlowchartStepRequestComponent) {
-          console.log(this.getStepTreeWidth(child));
-        }
       });
 
       let leftXTree = stepXCenter - totalTreeWidth / 2;

@@ -1,12 +1,24 @@
 :host {
-  border-radius: 100% !important;
+  border-radius: 0% 100% 100% 100% !important;
   padding: 0 !important;
-}
-.wrapper {
-  display: grid;
-  place-items: center;
-  width: 35px;
-  height: 35px;
-  padding: 1rem;
-  margin: -1rem;
+  background-color: #e6e6e6 !important;
+
+  &.dragover {
+    background-color: #387bfd !important;
+
+    .wrapper {
+      color: #fff;
+    }
+  }
+  .wrapper {
+    rotate: -45deg;
+    display: grid;
+    place-items: center;
+    width: 35px;
+    transition: 0.2s ease !important;
+    height: 35px;
+    padding: 1rem;
+    margin: -1rem;
+    font-size: 1.5rem;
+  }
 }
