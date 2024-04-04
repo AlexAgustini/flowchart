@@ -1,6 +1,6 @@
 import { Type } from '@angular/core';
 import {
-  FlowchartStepCollectionComponent,
+  FlowchartStepCollectionRequestComponent,
   FlowchartStepConditionalComponent,
   FlowchartStepFinalizationComponent,
   FlowchartStepFlowRequestComponent,
@@ -14,6 +14,7 @@ import {
 import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
 import { FlowchartStepResultComponent } from '../components/helper-steps/flowchart-step-result/flowchart-step-result.component';
 import { FlowchartStepDropareaComponent } from '../components/helper-steps/step-droparea/flowchart-step-droparea.component';
+import { FlowchartStepExecutionReturnComponent } from '../components/steps/flowchart-step-execution-return/flowchart-step-execution-return.component';
 
 export const stepsObj: Array<{
   type: FlowchartStepsEnum;
@@ -28,6 +29,10 @@ export const stepsObj: Array<{
     component: FlowchartStepFinalizationComponent,
   },
   {
+    type: FlowchartStepsEnum.STEP_EXECUTION_RETURN,
+    component: FlowchartStepExecutionReturnComponent,
+  },
+  {
     type: FlowchartStepsEnum.STEP_SCRIPT,
     component: FlowchartStepScriptComponent,
   },
@@ -40,8 +45,8 @@ export const stepsObj: Array<{
     component: FlowchartStepFlowRequestComponent,
   },
   {
-    type: FlowchartStepsEnum.STEP_COLLECTION,
-    component: FlowchartStepCollectionComponent,
+    type: FlowchartStepsEnum.STEP_COLLECTION_REQUEST,
+    component: FlowchartStepCollectionRequestComponent,
   },
   {
     type: FlowchartStepsEnum.STEP_NOTIFICATION,

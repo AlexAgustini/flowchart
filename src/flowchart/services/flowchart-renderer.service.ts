@@ -213,6 +213,10 @@ export class FlowchartRendererService {
     });
 
     this.renderStepTree(rootStep);
+
+    setTimeout(() => {
+      this.removeOldConnectors();
+    }, 100);
   }
 
   /**
@@ -253,10 +257,21 @@ export class FlowchartRendererService {
       });
 
       xAccumulator += childTreeWidth + FlowchartConstants.FLOWCHART_STEPS_GAP;
-
       this.renderStepTree(child);
     });
   }
+
+  removeOldConnectors = () => {
+    this.connectors.forEach((connector) => {
+      const parentStep = this.getStepById(connector.parentId);
+      const childStep = this.getStepById(connector.childId);
+
+      if (!parentStep || !childStep || !parentStep.children.some((child) => child.id == connector.childId)) {
+        this.removeConnector(connector);
+        connector.path.remove();
+      }
+    });
+  };
 
   /**
    * Getter de conectores

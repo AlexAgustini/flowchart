@@ -5,9 +5,7 @@ import { NgStyle } from '@angular/common';
 import { FlowchartDragService } from './services/flowchart-drag.service';
 import { FlowchartStepsEnum } from './enums/flowchart-steps.enum';
 import { FlowchartService, flowB } from './services/flowchart.service';
-import { FlowchartStepResultsEnum } from './enums/flowchart-step-results-enum';
 import { FlowBlock } from './types/flow-block.type';
-import { FlowchartConstants } from './helpers/flowchart-constants';
 @Component({
   standalone: true,
   imports: [NgStyle],
@@ -100,7 +98,7 @@ export class FlowchartComponent {
         }
         Reflect.set(flowchartStep.data, 'conditionComposition', flowBlock.conditionComposition);
         break;
-      case FlowchartStepsEnum.STEP_COLLECTION:
+      case FlowchartStepsEnum.STEP_COLLECTION_REQUEST:
         Reflect.set(flowchartStep.data, 'requestType', flowBlock.collectionRequestType);
         Reflect.set(flowchartStep.data, 'collectionId', flowBlock.collectionId);
         Reflect.set(flowchartStep.data, 'collectionConfigurations', {
@@ -167,24 +165,12 @@ export class FlowchartComponent {
   recenter() {
     this.flowchartRendererService.render();
   }
-}
 
-const mock: FlowchartStep = {
-  type: FlowchartStepsEnum.STEP_INITIAL,
-  data: {
-    title: '1st component',
-  },
-  children: [
-    {
-      type: FlowchartStepsEnum.STEP_REQUEST,
-      children: [
-        {
-          type: FlowchartStepsEnum.STEP_CONDITIONAL,
-        },
-        {
-          type: FlowchartStepsEnum.STEP_SCRIPT,
-        },
-      ],
-    },
-  ],
-};
+  toggleDragMode() {
+    this.flowchartRendererService.steps.forEach((step) => step.toggleDragMode());
+  }
+
+  clear() {
+    localStorage.clear();
+  }
+}

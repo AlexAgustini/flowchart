@@ -11,11 +11,6 @@ import { FlowchartDragService } from '../../../services/flowchart-drag.service';
   styleUrl: './flowchart-step-droparea.component.scss',
 })
 export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
-  /**
-   * Serviço de drag
-   */
-  private readonly flowchartDragService: FlowchartDragService;
-
   ngOnInit() {
     this.dragDir.disabled = true;
   }
@@ -27,7 +22,6 @@ export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
 
   constructor(flowchartDragService: FlowchartDragService) {
     super();
-    this.flowchartDragService = flowchartDragService;
   }
 
   /**
@@ -49,6 +43,7 @@ export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
    * HostListener para evento de drop
    */
   @HostListener('drop') onDrop(): void {
+    console.log('drop');
     this.removeDragStyles();
     this.parent.addChild({
       pendingComponent: { type: this.flowchartDragService.getDragData('STEP_TYPE') },
@@ -65,6 +60,10 @@ export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
         asSibling: true,
       });
     }
+  }
+
+  @HostListener('mouseenter') a() {
+    console.log('a');
   }
 
   private applyDragStyles(): void {

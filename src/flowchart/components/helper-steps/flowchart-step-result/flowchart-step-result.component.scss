@@ -1,4 +1,8 @@
 :host {
-  padding: 0.5rem !important;
-  background-color: #e6e6e6 !important;
+  min-width: 130px !important;
+  padding: 0.3rem 1rem !important;
+  box-shadow: 0 0 0 !important;
+  text-align: center;
+  background: var(--gray-200) !important;
+  font-size: 80%;
 }

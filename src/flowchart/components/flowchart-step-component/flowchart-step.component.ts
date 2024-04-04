@@ -24,6 +24,8 @@ import { FlowchartStepResultsEnum } from '../../enums/flowchart-step-results-enu
 import { Subject, takeUntil } from 'rxjs';
 import { animate, style, transition, trigger } from '@angular/animations';
 import { cloneDeep } from 'lodash';
+import { FlowchartDragService } from '../../services/flowchart-drag.service';
+import { FlowchartDragStepSwapService } from '../../services/flowchart-drag-step-swap.service';
 
 @Component({
   standalone: true,
@@ -216,7 +218,19 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
    * @readonly
    * Serviço de conectores
    */
-  public readonly connectorsService = inject(FlowchartConnectorsService);
+  public readonly flowchartConnectorsService = inject(FlowchartConnectorsService);
+  /**
+   * @private
+   * @readonly
+   * Serviço de drag
+   */
+  public readonly flowchartDragService = inject(FlowchartDragService);
+  /**
+   * @private
+   * @readonly
+   * Serviço de drag
+   */
+  public readonly flowchartDragStepSwapService = inject(FlowchartDragStepSwapService);
   /**
    * @private
    * @readonly
@@ -229,7 +243,6 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
     this.setCdkDragEventsCallbacks();
     this.setHostElementDefaults();
     this.afterStepRender?.(this);
-    this.observeHostResize();
   }
 
   ngOnDestroy() {
@@ -245,6 +258,35 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
    * @type
    */
   public async addChild<T extends FlowchartStepsDataType>({
+    pendingComponent,
+    asSibling,
+    asPlaceholder,
+  }: {
+    pendingComponent: FlowchartStep<T>;
+    asSibling?: boolean;
+    asPlaceholder?: boolean;
+    log?: boolean;
+  }): Promise<FlowchartStepComponent<T>> {
+    const child = await this.flowchartStepsService.createStep({
+      pendingStep: pendingComponent,
+      parentStep: this,
+      asSibling,
+      asPlaceholder: asPlaceholder ?? this.isPlaceholder,
+    });
+
+    this.flowchartRendererService.render();
+
+    return child;
+  }
+
+  /**
+   * Adiciona um step filho
+   * @param pendingComponent step a ser adicionado
+   * @param asSibling Se o step a ser adicionado deve ser adicionado como irmão dos atuais filhos desse step(default true). Caso não for sibling,
+   * os filhos desse step serão realocados como children do novo step inserido
+   * @type
+   */
+  public async zaddChild<T extends FlowchartStepsDataType>({
     pendingComponent,
     asSibling,
     asPlaceholder,
@@ -323,7 +365,8 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
     }
 
     setTimeout(() => {
-      this.connectorsService.drawConnectors(this.parent);
+      this.flowchartConnectorsService.drawConnectors(this.parent);
+      this.flowchartConnectorsService.drawConnectors(this);
     }, 100);
   }
 
@@ -370,15 +413,25 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
     this.transition = null;
     this.dragPositionBeforeDragStart = this.getCoordinates();
     this.children.forEach((child) => child.onDragStart(dragEvent));
+
+    if (this.isOnDragToggle) {
+      this.flowchartDragStepSwapService.currentStepTreeBeingSwappedOriginParent = this.parent;
+      this.flowchartDragStepSwapService.currentStepTreeBeingSwapped = this;
+      this.parent = null;
+    }
   }
 
   /**
    * Callback after stopped dragging component
    * @param dragEvent Event
    */
-  private onDragEnd(e: CdkDragEnd) {
+  private onDragEnd(e: CdkDragEnd, fromRecursion?: boolean) {
     this.transition = '.3s ease';
-    this.children.forEach((child) => child.onDragEnd(e));
+    this.children.forEach((child) => child.onDragEnd(e, true));
+
+    if (this.isOnDragToggle && !fromRecursion) {
+      this.flowchartDragStepSwapService.onFlowchartDragEnd(e, this);
+    }
   }
 
   /**
@@ -386,7 +439,7 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
    * @param dragEvent Event
    */
   protected onDragMoved(dragEvent: CdkDragMove, storeCoordinates = true): void {
-    if (storeCoordinates) {
+    if (storeCoordinates && !this.isOnDragToggle) {
       FlowchartCoordinatesStorageService.setStepCoordinates(this.id, this.getCoordinates());
     }
 
@@ -401,9 +454,18 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
       child.onDragMoved(dragEvent, false);
     });
 
-    this.connectorsService.drawConnectors(this);
+    this.flowchartConnectorsService.drawConnectors(this);
     if (this.parent) {
-      this.connectorsService.drawConnectors(this.parent);
+      this.flowchartConnectorsService.drawConnectors(this.parent);
+    }
+
+    if (this.isOnDragToggle) {
+      this.flowchartDragStepSwapService.onFlowchartDragOver({
+        offsetX: (dragEvent.event as any).layerX,
+        offsetY: (dragEvent.event as any).layerY,
+        clientX: (dragEvent.event as any).clientX,
+        clientY: (dragEvent.event as any).clientX,
+      } as any);
     }
   }
 
@@ -412,8 +474,25 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
    */
   private setHostElementDefaults(): void {
     this.renderer2.addClass(this.elementRef.nativeElement, FlowchartConstants.FLOWCHART_STEP_CLASS);
-
     this.renderer2.setAttribute(this.elementRef.nativeElement, 'id', this.id);
+
+    this.createStepIdHeader();
+    this.observeHostResize();
+  }
+
+  /**
+   *  Cria header de exibição do id do bloco
+   */
+  private createStepIdHeader(): void {
+    if (this.type == FlowchartStepsEnum.STEP_DROPAREA || this.type == FlowchartStepsEnum.STEP_RESULT) return;
+    const header = this.renderer2.createElement('div');
+    const idSpan = this.renderer2.createElement('span');
+    const id = this.renderer2.createText(`ID: ${this.id}`);
+    this.renderer2.appendChild(idSpan, id);
+    this.renderer2.appendChild(header, idSpan);
+    this.renderer2.addClass(header, 'flowchart-step-header-id');
+
+    this.elementRef.nativeElement.insertAdjacentElement('afterbegin', header);
   }
 
   /**
@@ -462,4 +541,10 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
   public hasMoreThanOneChild(): boolean {
     return this.children.length > 1;
   }
+
+  public toggleDragMode() {
+    this.isOnDragToggle = !this.isOnDragToggle;
+  }
+
+  private isOnDragToggle: boolean;
 }

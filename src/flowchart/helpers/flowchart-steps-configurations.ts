@@ -16,8 +16,8 @@ export const FlowchartStepsConfiguration: Array<FlowchartStepConfiguration> = [
     stepResults: [{ path: FlowchartStepResultsEnum.SUCCESS }],
   },
   {
-    stepType: FlowchartStepsEnum.STEP_COLLECTION,
-    stepResults: [{ path: FlowchartStepResultsEnum.SUCCESS }],
+    stepType: FlowchartStepsEnum.STEP_COLLECTION_REQUEST,
+    stepResults: [{ path: FlowchartStepResultsEnum.SUCCESS }, { path: FlowchartStepResultsEnum.ERROR }],
   },
   {
     stepType: FlowchartStepsEnum.STEP_NOTIFICATION,
@@ -50,7 +50,7 @@ export const FlowchartStepsConfiguration: Array<FlowchartStepConfiguration> = [
   },
   {
     stepType: FlowchartStepsEnum.STEP_EXECUTION_RETURN,
-    stepResults: [],
+    stepResults: [{ path: FlowchartStepResultsEnum.LOOP_END }],
     canDropInBetweenSteps: false,
   },
 ];

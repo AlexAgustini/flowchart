@@ -1,7 +1,11 @@
 <svg #svg id="canvas-svg"></svg>
 <ng-container #container></ng-container>
-<button style="position: absolute" (click)="logFlow()">log flow()</button>
-<button style="position: absolute; left: 80px" (click)="recenter()">recenter</button>
+<div style="position: absolute">
+  <button (click)="logFlow()">log flow()</button>
+  <button (click)="recenter()">recenter</button>
+  <button (click)="toggleDragMode()">toggle drag mode</button>
+  <button (click)="clear()">clear</button>
+</div>
 
 <div class="flowchart-scroll-x-div"></div>
 <div class="flowchart-scroll-y-div"></div>

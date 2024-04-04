@@ -1,6 +1,6 @@
 import {
   FlowchartStepInitialComponent,
-  FlowchartStepCollectionComponent,
+  FlowchartStepCollectionRequestComponent,
   FlowchartStepConditionalComponent,
   FlowchartStepFinalizationComponent,
   FlowchartStepFlowRequestComponent,
@@ -13,7 +13,7 @@ import {
 
 export type FlowchartStepsComponents =
   | FlowchartStepInitialComponent
-  | FlowchartStepCollectionComponent
+  | FlowchartStepCollectionRequestComponent
   | FlowchartStepConditionalComponent
   | FlowchartStepFinalizationComponent
   | FlowchartStepFlowRequestComponent

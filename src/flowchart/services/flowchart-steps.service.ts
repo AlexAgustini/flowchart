@@ -64,6 +64,7 @@ export class FlowchartStepsService {
     if (!pendingStep) return;
 
     await new Promise((resolve) => setTimeout(() => resolve(true), 50));
+
     const compRef: ComponentRef<FlowchartStepComponent<T>> = this.flowchartViewContainer.createComponent(
       stepsObj.find((step) => step.type == pendingStep.type).component
     );

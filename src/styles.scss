@@ -27,4 +27,8 @@ body {
 
 :root {
   --primary-color: #387bfd;
+  --gray-100: rgba(0, 0, 0, 0.03);
 }
+
+/* Importing Bootstrap SCSS file. */
+@import "bootstrap/scss/bootstrap";

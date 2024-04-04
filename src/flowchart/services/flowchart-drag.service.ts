@@ -43,10 +43,6 @@ export class FlowchartDragService {
     this.dragData.clear();
   }
 
-  public getDragData(key: 'STEP_TYPE'): FlowchartStepsEnum;
-  public getDragData(key: 'data'): any;
-  public getDragData(key: 'canDropAnywhere'): boolean;
-
   /**
    * Retorna dados de drag
    * @param key Chave setada
@@ -112,6 +108,8 @@ export class FlowchartDragService {
       );
     });
 
+    console.log(hasStepAbove);
+
     if (hasStepAbove) {
       // Caso esteja ná area de drop de um step, mas já tenha placeholder renderizados, retorna
       if (this.flowchartRendererService.hasPlaceholderSteps()) return;
@@ -153,7 +151,7 @@ export class FlowchartDragService {
 
     if (canDropInBetweenSteps === false) return;
 
-    if (parentStep.children[0].type == FlowchartStepsEnum.STEP_DROPAREA) return;
+    if (parentStep.children[0]?.type == FlowchartStepsEnum.STEP_DROPAREA) return;
 
     parentStep.addChild({
       pendingComponent: {

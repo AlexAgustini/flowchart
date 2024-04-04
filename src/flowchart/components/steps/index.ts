@@ -1,4 +1,4 @@
-export * from './flowchart-step-collection/flowchart-step-collection.component';
+export * from './flowchart-step-collection/flowchart-step-collection-request.component';
 export * from './flowchart-step-conditional/flowchart-step-conditional.component';
 export * from './flowchart-step-finalization/flowchart-step-finalization.component';
 export * from './flowchart-step-initial/flowchart-step-initial.component';

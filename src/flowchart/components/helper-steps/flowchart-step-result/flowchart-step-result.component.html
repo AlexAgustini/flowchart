@@ -1,9 +1,22 @@
-<ng-container [ngSwitch]="data?.resultType">
-  <ng-container *ngSwitchCase="'ERROR'">Erro</ng-container>
-  <ng-container *ngSwitchCase="'SUCCESS'">Sucesso</ng-container>
-  <ng-container *ngSwitchCase="'FALSE'">Falso</ng-container>
-  <ng-container *ngSwitchCase="'TRUE'">Verdadeiro</ng-container>
-  <ng-container *ngSwitchCase="'PER_ITEM'">Por item</ng-container>
-  <ng-container *ngSwitchCase="'LOOP_END'">Fim de laço</ng-container>
-  <ng-container *ngSwitchDefault>Sucesso</ng-container>
-</ng-container>
+<span
+  *ngIf="
+    data.resultType == flowchartStepResultsEnum.SUCCESS ||
+    data.resultType == flowchartStepResultsEnum.TRUE ||
+    data.resultType == flowchartStepResultsEnum.DONE
+  "
+>
+  <i-feather name="check"></i-feather>
+  Sucesso
+</span>
+<span *ngIf="data.resultType == flowchartStepResultsEnum.ERROR || data.resultType == flowchartStepResultsEnum.FALSE">
+  <i-feather name="x"></i-feather>
+  Erro
+</span>
+<span *ngIf="data.resultType == flowchartStepResultsEnum.PER_ITEM">
+  <i-feather name="repaet" class="text-danger"></i-feather>
+  Por item
+</span>
+<span *ngIf="data.resultType == flowchartStepResultsEnum.LOOP_END">
+  <i-feather name="minus" class="text-success"></i-feather>
+  Fim de laço
+</span>
