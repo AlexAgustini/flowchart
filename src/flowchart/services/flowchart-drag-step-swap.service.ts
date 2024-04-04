@@ -28,48 +28,6 @@ export class FlowchartDragStepSwapService {
     this.isSwapModeActive = !this.isSwapModeActive;
   }
 
-  /**
-   * Observa drag abaixo de steps para criação de steps placeholder
-   * @param event
-   */
-  public onFlowchartDragOver(event: DragEvent): void {
-    return;
-    const hasStepAbove = this.flowchartRendererService?.steps.find((step) => {
-      if (step.type != FlowchartStepsEnum.STEP_RESULT && step.type != FlowchartStepsEnum.STEP_INITIAL) return;
-
-      const stepCoords = step.getCoordinates();
-
-      return (
-        event.offsetX > stepCoords.x - FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_WIDTH_THRESHOLD &&
-        event.offsetX <
-          stepCoords.x + stepCoords.width + FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_WIDTH_THRESHOLD &&
-        stepCoords.y + stepCoords.height < event.offsetY &&
-        stepCoords.y + stepCoords.height + FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CREATION_HEIGHT_THRESHOLD >
-          event.offsetY
-      );
-    });
-
-    if (hasStepAbove) {
-      // Caso esteja ná area de drop de um step, mas já tenha placeholder renderizados, retorna
-      if (this.flowchartRendererService.hasPlaceholderSteps()) return;
-
-      // const parentStep = this.flowchartRendererService.getStepById(hasStepAbove.id);
-
-      // parentStep.zaddChild({ pendingComponent: this.currentStepTreeBeingSwapped, asPlaceholder: true });
-    } else {
-      // Se não houverem placeholder steps, retorna
-      if (!this.flowchartRendererService.hasPlaceholderSteps()) return;
-
-      // Se estiver ocorrendo drag encima de um droparea, retorna
-      // if (this.isDraggingOverDroparea(event)) return;
-
-      // Se estiver em delay de criação de placeholders, retorna (para evitar bugs visuais)
-      // if (this.isOnPlaceholderCreationDelay) return;
-
-      // this.removeDropPlaceholders();
-    }
-  }
-
   public onFlowchartDragEnd(e: CdkDragEnd, step: FlowchartStepComponent) {
     const { layerX: mouseX, layerY: mouseY } = e.event as any;
 
@@ -96,6 +54,7 @@ export class FlowchartDragStepSwapService {
         1
       );
       droppedAboveDroparea.parent.children.push(this.currentStepTreeBeingSwapped);
+      this.currentStepTreeBeingSwapped.parent = droppedAboveDroparea.parent;
     } else {
       this.currentStepTreeBeingSwapped.parent = this.currentStepTreeBeingSwappedOriginParent;
     }

@@ -1,4 +1,4 @@
-import { FlowchartConstants } from '../../helpers/flowchart-constants';
+import { FlowchartConnectorsAnimationsConstants, FlowchartConstants } from '../../helpers/flowchart-constants';
 import { FlowchartComponent } from './../../flowchart.component';
 import { CdkDrag, CdkDragEnd, CdkDragMove, CdkDragStart, Point } from '@angular/cdk/drag-drop';
 import {
@@ -23,7 +23,6 @@ import { FlowchartStepsEnum } from '../../enums/flowchart-steps.enum';
 import { FlowchartStepResultsEnum } from '../../enums/flowchart-step-results-enum';
 import { Subject, takeUntil } from 'rxjs';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { cloneDeep } from 'lodash';
 import { FlowchartDragService } from '../../services/flowchart-drag.service';
 import { FlowchartDragStepSwapService } from '../../services/flowchart-drag-step-swap.service';
 
@@ -32,7 +31,7 @@ import { FlowchartDragStepSwapService } from '../../services/flowchart-drag-step
   selector: 'flowchart-step',
   template: '',
   hostDirectives: [CdkDrag],
-  host: { '[@animation]': '' },
+  // host: { '[@animation]': '' },
   animations: [
     trigger('animation', [
       transition(':enter', [
@@ -117,19 +116,21 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
   @HostBinding('style.transform-origin') private transformOrigin: string;
 
   @HostListener('dblclick') private onDoubleClick() {
-    const change = (step: FlowchartStepComponent) => {
-      step.id = this.flowchartStepsService.generateRandomId();
-      for (let child of step.children) {
-        setTimeout(() => {
-          change(child);
-        }, 50);
-      }
-    };
+    console.log(this);
 
-    const clone = cloneDeep(this);
-    change(clone);
+    // const change = (step: FlowchartStepComponent) => {
+    //   step.id = this.flowchartStepsService.generateRandomId();
+    //   for (let child of step.children) {
+    //     setTimeout(() => {
+    //       change(child);
+    //     }, 50);
+    //   }
+    // };
 
-    this.flowchartStepsService.stepclone = clone;
+    // const clone = cloneDeep(this);
+    // change(clone);
+
+    // this.flowchartStepsService.stepclone = clone;
   }
   /**
    * Hook chamado após inicialização de children desse step
@@ -159,9 +160,9 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
   public set isPlaceholder(value: boolean) {
     this._isPlaceholder = value;
     if (value) {
-      this.elementRef.nativeElement.classList.add('placeholder');
+      this.elementRef.nativeElement.classList.add(FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CLASS);
     } else {
-      this.elementRef.nativeElement.classList.remove('placeholder');
+      this.elementRef.nativeElement.classList.remove(FlowchartConstants.FLOWCHART_STEP_PLACEHOLDER_CLASS);
     }
   }
 
@@ -280,37 +281,10 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
   }
 
   /**
-   * Adiciona um step filho
-   * @param pendingComponent step a ser adicionado
-   * @param asSibling Se o step a ser adicionado deve ser adicionado como irmão dos atuais filhos desse step(default true). Caso não for sibling,
-   * os filhos desse step serão realocados como children do novo step inserido
-   * @type
-   */
-  public async zaddChild<T extends FlowchartStepsDataType>({
-    pendingComponent,
-    asSibling,
-    asPlaceholder,
-  }: {
-    pendingComponent: FlowchartStep<T>;
-    asSibling?: boolean;
-    asPlaceholder?: boolean;
-    log?: boolean;
-  }): Promise<FlowchartStepComponent<T>> {
-    const child = await this.flowchartStepsService.createStep({
-      pendingStep: pendingComponent,
-      parentStep: this,
-      asSibling,
-      asPlaceholder: asPlaceholder ?? this.isPlaceholder,
-    });
-
-    return child;
-  }
-
-  /**
    * Adiciona droparea à este step
    */
-  public addDroparea(): void {
-    this.addChild({
+  public async addDroparea(): Promise<void> {
+    await this.addChild({
       pendingComponent: {
         type: FlowchartStepsEnum.STEP_DROPAREA,
       },
@@ -327,10 +301,6 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
     this.afterStepDestroy(this, recursive);
     this.flowchartRendererService.render();
 
-    if (this.hasMoreThanOneChild() && !recursive && !this.flowchartRendererService.isDraggingNewStep) {
-      this.children[1].removeSelf(true);
-    }
-
     if (recursive) {
       this.children.forEach((child) => child.removeSelf(true));
     }
@@ -342,31 +312,10 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
    */
   public setCoordinates({ x, y }: Point): void {
     this.dragDir.setFreeDragPosition({ x, y });
-
-    if (this.elementRef.nativeElement.style.transform) {
-      const x = Number(
-        this.elementRef.nativeElement.style.transform
-          .replace('translate3d(', '')
-          .replace(',0px)', '')
-          .split(',')[0]
-          .trim()
-          .replace(/\D/g, '')
-      );
-      const y = Number(
-        this.elementRef.nativeElement.style.transform
-          .replace('translate3d(', '')
-          .replace('0px)', '')
-          .split(',')[1]
-          .trim()
-          .replace(/\D/g, '')
-      );
-
-      this.transformOrigin = `${x + this.getCoordinates().width / 2}px ${y + this.getCoordinates().height / 2}px`;
-    }
+    this.setTransformOrigin();
 
     setTimeout(() => {
-      this.flowchartConnectorsService.drawConnectors(this.parent);
-      this.flowchartConnectorsService.drawConnectors(this);
+      this.drawConnectors();
     }, 100);
   }
 
@@ -409,12 +358,16 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
    * Callback when starting to drag the component
    * @param dragEvent Event
    */
-  private onDragStart(dragEvent: CdkDragStart) {
+  private onDragStart(dragEvent: CdkDragStart, fromRecursion = false) {
     this.transition = null;
     this.dragPositionBeforeDragStart = this.getCoordinates();
-    this.children.forEach((child) => child.onDragStart(dragEvent));
+    this.children.forEach((child) => child.onDragStart(dragEvent, true));
 
-    if (this.isOnDragToggle) {
+    this.flowchartRendererService.flowchartElement.nativeElement.classList.remove(
+      FlowchartConnectorsAnimationsConstants.FLOWCHART_ANIMATE_CONNECTORS_CLASS
+    );
+
+    if (this.isOnDragToggle && !fromRecursion) {
       this.flowchartDragStepSwapService.currentStepTreeBeingSwappedOriginParent = this.parent;
       this.flowchartDragStepSwapService.currentStepTreeBeingSwapped = this;
       this.parent = null;
@@ -428,6 +381,10 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
   private onDragEnd(e: CdkDragEnd, fromRecursion?: boolean) {
     this.transition = '.3s ease';
     this.children.forEach((child) => child.onDragEnd(e, true));
+
+    this.flowchartRendererService.flowchartElement.nativeElement.classList.add(
+      FlowchartConnectorsAnimationsConstants.FLOWCHART_ANIMATE_CONNECTORS_CLASS
+    );
 
     if (this.isOnDragToggle && !fromRecursion) {
       this.flowchartDragStepSwapService.onFlowchartDragEnd(e, this);
@@ -454,19 +411,7 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
       child.onDragMoved(dragEvent, false);
     });
 
-    this.flowchartConnectorsService.drawConnectors(this);
-    if (this.parent) {
-      this.flowchartConnectorsService.drawConnectors(this.parent);
-    }
-
-    if (this.isOnDragToggle) {
-      this.flowchartDragStepSwapService.onFlowchartDragOver({
-        offsetX: (dragEvent.event as any).layerX,
-        offsetY: (dragEvent.event as any).layerY,
-        clientX: (dragEvent.event as any).clientX,
-        clientY: (dragEvent.event as any).clientX,
-      } as any);
-    }
+    this.drawConnectors();
   }
 
   /**
@@ -503,6 +448,35 @@ export class FlowchartStepComponent<T extends FlowchartStepsDataType = Flowchart
       if (entries[0].contentRect.width == 0) return;
       this.flowchartRendererService.renderStepTree(this.parent);
     }).observe(this.elementRef.nativeElement);
+  }
+
+  /**
+   * Mantém o {@link transformOrigin} atualizado, para ser utilizado nas animações do host
+   */
+  private setTransformOrigin(): void {
+    if (this.elementRef.nativeElement.style.transform) {
+      let [x, y] = this.elementRef.nativeElement.style.transform
+        .replace('translate3d', '')
+        .replace(',0px', '')
+        .split(',');
+
+      x = x.replace(/\D/g, '');
+      y = y.replace(/\D/g, '');
+
+      this.transformOrigin = `${Number(x) + this.getCoordinates().width / 2}px ${
+        Number(y) + this.getCoordinates().height / 2
+      }px`;
+    }
+  }
+
+  /**
+   * Desenha conectores
+   */
+  private drawConnectors(): void {
+    this.flowchartConnectorsService.drawConnectors(this);
+    if (this.parent) {
+      this.parent.drawConnectors();
+    }
   }
 
   /**

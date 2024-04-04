@@ -3,7 +3,7 @@ import { NgIf } from '@angular/common';
 import { FlowchartStepComponent } from '../../flowchart-step-component/flowchart-step.component';
 import { IconsModule } from '../../../../app/feather/feather.module';
 import { FlowchartStepResultsEnum } from '../../../enums/flowchart-step-results-enum';
-import { interval } from 'rxjs';
+import { EMPTY, concatMap, interval } from 'rxjs';
 
 @Component({
   selector: 'step-result-label',
@@ -20,12 +20,16 @@ export class FlowchartStepResultComponent extends FlowchartStepComponent {
   public flowchartStepResultsEnum = FlowchartStepResultsEnum;
 
   override afterChildrenInit = (): void => {
-    this.dropAreaInterval.subscribe(() => {
-      if (!this.children.length) {
-        this.addDroparea();
-      }
-    });
+    this.dropAreaInterval
+      .pipe(
+        concatMap(async () => {
+          if (!this.children.length) {
+            await this.addDroparea();
+          }
+        })
+      )
+      .subscribe();
   };
 
-  private dropAreaInterval = interval(500);
+  private dropAreaInterval = interval(50);
 }

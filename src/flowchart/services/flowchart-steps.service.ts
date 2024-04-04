@@ -9,6 +9,7 @@ import { stepsObj } from '../helpers/flowchart-steps-registry';
 import { FlowchartStepsDataType } from '../types/flowchart-steps-data-type';
 import { FlowchartStepsEnum } from '../enums/flowchart-steps.enum';
 import { FlowchartStepsConfiguration } from '../helpers/flowchart-steps-configurations';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable({
   providedIn: 'root',
@@ -55,21 +56,22 @@ export class FlowchartStepsService {
     parentStep,
     asSibling = false,
     asPlaceholder = false,
+    n = 0,
   }: {
     pendingStep: FlowchartStepComponent<T> | FlowchartStep<T>;
     parentStep?: FlowchartStepComponent;
     asSibling?: boolean;
     asPlaceholder?: boolean;
+    n?: number;
   }): Promise<FlowchartStepComponent<T>> {
     if (!pendingStep) return;
 
-    await new Promise((resolve) => setTimeout(() => resolve(true), 50));
-
+    await new Promise((resolve) => setTimeout(() => resolve(true), 0));
     const compRef: ComponentRef<FlowchartStepComponent<T>> = this.flowchartViewContainer.createComponent(
       stepsObj.find((step) => step.type == pendingStep.type).component
     );
 
-    await this.setStepData({
+    this.setStepData({
       pendingStep,
       compRef,
       parentStep,
@@ -84,30 +86,42 @@ export class FlowchartStepsService {
 
     // If there are no pathsResults configured, just continue creating the children steps without creating a stepResult
     if (!createdStepPathsResults) {
-      pendingStep.children?.forEach((child: FlowchartStep) => {
-        this.createStep({ pendingStep: child, parentStep: compRef.instance, asPlaceholder });
-      });
+      if (pendingStep.children) {
+        pendingStep.children.forEach((child) => {
+          this.createStep({ parentStep: compRef.instance, pendingStep: child, asPlaceholder, n: n + 1 });
+        });
+      }
 
       compRef.instance.afterChildrenInit?.();
-
       return compRef.instance;
     }
 
-    createdStepPathsResults.stepResults?.forEach(async (pathResult, i) => {
-      const shouldCreateStepResult = i == 0 || pathResult.required || pendingStep.children?.[i];
-      if (!shouldCreateStepResult) return;
+    if (createdStepPathsResults.stepResults) {
+      for (let [index, pathResult] of createdStepPathsResults.stepResults.entries()) {
+        const shouldCreateStepResult = index == 0 || pathResult.required || pendingStep.children?.[index];
+        if (!shouldCreateStepResult) return;
 
-      const stepResult = await this.createStep({
-        pendingStep: { type: FlowchartStepsEnum.STEP_RESULT, data: { resultType: pathResult.path } },
-        parentStep: compRef.instance,
-        asPlaceholder,
-        asSibling: i > 0,
-      });
+        const stepResult = await compRef.instance.addChild({
+          pendingComponent: {
+            type: FlowchartStepsEnum.STEP_RESULT,
+            data: { resultType: pathResult.path },
+          },
+          asPlaceholder,
+          asSibling: index > 0,
+        });
 
-      if (pendingStep.children?.[i]) {
-        this.createStep({ pendingStep: pendingStep.children[i], parentStep: stepResult, asPlaceholder });
+        if (pendingStep.children?.[index]) {
+          this.createStep({
+            parentStep: stepResult,
+            pendingStep: pendingStep.children[index],
+            asPlaceholder,
+            n: n + 1,
+          });
+        }
+
+        // stepResult.afterChildrenInit?.();
       }
-    });
+    }
 
     compRef.instance.afterChildrenInit?.();
     return compRef.instance;
@@ -138,7 +152,7 @@ export class FlowchartStepsService {
       stepsObj.find((step) => step.type == pendingStep.type).component
     );
 
-    await this.setStepData({
+    this.setStepData({
       pendingStep,
       compRef,
       parentStep,
@@ -168,7 +182,7 @@ export class FlowchartStepsService {
    * @param asSibling Se o step que será criado deve ser criado como irmão dos steps children atuais do parentStep - default false
    * @param asPlaceholder Se deve ser criado em modo de placeholder - default false
    */
-  private async setStepData({
+  private setStepData({
     pendingStep,
     compRef,
     parentStep,
@@ -180,7 +194,7 @@ export class FlowchartStepsService {
     parentStep?: FlowchartStepComponent;
     asSibling: boolean;
     asPlaceholder: boolean;
-  }): Promise<void> {
+  }): void {
     this.flowchartRendererService.addStep(compRef.instance);
     compRef.instance.id = pendingStep.id ?? this.generateRandomId();
     compRef.instance.data = pendingStep.data;
@@ -274,7 +288,9 @@ export class FlowchartStepsService {
     // Remove stepResults(caso não seja remoção recursiva)
     if (!recursive) {
       const stepResults = destroyedStep.children.filter(
-        (child) => child.type == FlowchartStepsEnum.STEP_RESULT && !child.isPlaceholder
+        (child) =>
+          (child.type == FlowchartStepsEnum.STEP_RESULT || child.type == FlowchartStepsEnum.STEP_DROPAREA) &&
+          !child.isPlaceholder
       );
 
       stepResults.forEach((step) => step.removeSelf());
@@ -459,6 +475,6 @@ export class FlowchartStepsService {
   }
 
   public generateRandomId(): string {
-    return 's' + Date.now();
+    return uuidv4();
   }
 }

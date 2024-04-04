@@ -108,8 +108,6 @@ export class FlowchartDragService {
       );
     });
 
-    console.log(hasStepAbove);
-
     if (hasStepAbove) {
       // Caso esteja ná area de drop de um step, mas já tenha placeholder renderizados, retorna
       if (this.flowchartRendererService.hasPlaceholderSteps()) return;

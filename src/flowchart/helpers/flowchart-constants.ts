@@ -1,5 +1,7 @@
 export const FlowchartConstants = {
   FLOWCHART_STEP_CLASS: 'flowchart-step',
+  FLOWCHART_STEP_PLACEHOLDER_CLASS: 'flowchart-step-placeholder-class',
+
   FLOWCHART_CONNECTOR_CLASS: 'flowchart-connector',
   FLOWCHART_SCROLL_WIDTH_DIV_CLASS: 'flowchart-scroll-x-div',
   FLOWCHART_SCROLL_HEIGHT_DIV_CLASS: 'flowchart-scroll-y-div',
@@ -12,6 +14,7 @@ export const FlowchartConstants = {
 };
 
 export const FlowchartConnectorsAnimationsConstants = {
+  FLOWCHART_ANIMATE_CONNECTORS_CLASS: 'animate-connectors',
   STROKE_DASHARRAY: '6',
   STROKE_VALUES: '100; 0',
   DURATION: '4s',

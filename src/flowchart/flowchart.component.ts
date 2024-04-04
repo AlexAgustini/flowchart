@@ -30,6 +30,10 @@ export class FlowchartComponent {
     private elementRef: ElementRef<HTMLDivElement>
   ) {}
 
+  ngOnInit() {
+    this.elementRef.nativeElement.classList.add('animate-connectors');
+  }
+
   ngAfterViewInit() {
     this.flowchartService.initFlowchart(this.viewContainerRef, this.elementRef, this.svgRef);
 

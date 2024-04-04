@@ -43,7 +43,6 @@ export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
    * HostListener para evento de drop
    */
   @HostListener('drop') onDrop(): void {
-    console.log('drop');
     this.removeDragStyles();
     this.parent.addChild({
       pendingComponent: { type: this.flowchartDragService.getDragData('STEP_TYPE') },
@@ -60,10 +59,6 @@ export class FlowchartStepDropareaComponent extends FlowchartStepComponent {
         asSibling: true,
       });
     }
-  }
-
-  @HostListener('mouseenter') a() {
-    console.log('a');
   }
 
   private applyDragStyles(): void {

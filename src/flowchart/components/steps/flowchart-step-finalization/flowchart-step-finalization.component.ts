@@ -8,7 +8,7 @@ import { FlowchartStepsEnum } from '../../../enums/flowchart-steps.enum';
 })
 export class FlowchartStepFinalizationComponent extends FlowchartStepComponent {
   public override afterChildrenInit = () => {
-    if (this.children?.[0].type == FlowchartStepsEnum.STEP_DROPAREA) {
+    if (this.children?.[0]?.type == FlowchartStepsEnum.STEP_DROPAREA) {
       this.children[0].removeSelf();
     }
   };

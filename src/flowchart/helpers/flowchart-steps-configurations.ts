@@ -50,7 +50,6 @@ export const FlowchartStepsConfiguration: Array<FlowchartStepConfiguration> = [
   },
   {
     stepType: FlowchartStepsEnum.STEP_EXECUTION_RETURN,
-    stepResults: [{ path: FlowchartStepResultsEnum.LOOP_END }],
     canDropInBetweenSteps: false,
   },
 ];

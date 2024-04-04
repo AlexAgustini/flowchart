@@ -4,7 +4,7 @@ import { FlowchartDragService } from '../services/flowchart-drag.service';
 import { FlowchartStepsService } from '../services/flowchart-steps.service';
 import { FlowchartCoordinatesStorageService } from '../services/flowchart-coordinates-storage.service';
 import { FlowchartRendererService } from '../services/flowchart-renderer.service';
-import { FlowchartConstants } from '../helpers/flowchart-constants';
+import { FlowchartConnectorsAnimationsConstants, FlowchartConstants } from '../helpers/flowchart-constants';
 
 @Directive({
   selector: '[flowchartStep]',

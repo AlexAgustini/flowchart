@@ -16,6 +16,11 @@ export class FlowchartRendererService {
   };
 
   /**
+   * Flag para controle de execuções de método de render
+   */
+  private isRendering: boolean;
+
+  /**
    * ViewContainer do {@link FlowchartComponent}
    */
   public flowchartViewContainer!: ViewContainerRef;
@@ -94,13 +99,15 @@ export class FlowchartRendererService {
    * Renderiza os steps do flow e faz tratamento de dimensões do {@link flowchartElement} caso necessário
    */
   public async render(): Promise<void> {
-    if (!this.steps.length) return;
+    await new Promise((resolve) => setTimeout(() => resolve(true), 100));
+    if (!this.steps.length || this.isRendering) return;
+    this.isRendering = true;
 
     this.renderSteps();
-    await new Promise((resolve) => setTimeout(() => resolve(true), 100));
 
     this.treatFlowchartDimensions();
     this.resizeSvgCanvas();
+    this.isRendering = false;
   }
 
   /**
@@ -213,10 +220,6 @@ export class FlowchartRendererService {
     });
 
     this.renderStepTree(rootStep);
-
-    setTimeout(() => {
-      this.removeOldConnectors();
-    }, 100);
   }
 
   /**
@@ -260,18 +263,6 @@ export class FlowchartRendererService {
       this.renderStepTree(child);
     });
   }
-
-  removeOldConnectors = () => {
-    this.connectors.forEach((connector) => {
-      const parentStep = this.getStepById(connector.parentId);
-      const childStep = this.getStepById(connector.childId);
-
-      if (!parentStep || !childStep || !parentStep.children.some((child) => child.id == connector.childId)) {
-        this.removeConnector(connector);
-        connector.path.remove();
-      }
-    });
-  };
 
   /**
    * Getter de conectores

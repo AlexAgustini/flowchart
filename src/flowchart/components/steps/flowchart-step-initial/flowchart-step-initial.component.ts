@@ -5,4 +5,8 @@ import { FlowchartStepComponent } from '../../flowchart-step-component/flowchart
   selector: 'flowchart-step-initial-component',
   templateUrl: './flowchart-step-initial.component.html',
 })
-export class FlowchartStepInitialComponent extends FlowchartStepComponent {}
+export class FlowchartStepInitialComponent extends FlowchartStepComponent {
+  public override afterChildrenInit = () => {
+    console.log(this.children);
+  };
+}
